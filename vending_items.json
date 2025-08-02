@@ -1,0 +1,18 @@
+{
+    "11": {
+        "name": "Water",
+        "price": 10000,
+        "location": "A1"
+    },
+    "12": {
+        "name": "Chips",
+        "price": 15000,
+        "location": "A3"
+    },
+    "13": {
+        "name": "Soda",
+        "price": 18000,
+        "location": "B1"
+    },
+    "admin_password": "1234"
+}
