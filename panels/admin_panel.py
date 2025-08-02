@@ -7,11 +7,14 @@ class AdminPanel(QWidget):
         super().__init__()
         self.parent = parent
         self.setup_ui()
+        # Initialize current_input when panel is created
+        self.parent.current_input = ""
+        self.admin_item_display.setText("")
     
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(20)
+        layout.setSpacing(10)
         
         # Title
         title = QLabel("Admin Panel")
@@ -22,6 +25,12 @@ class AdminPanel(QWidget):
             font-family: Arial;
         """)
         layout.addWidget(title)
+        
+        # Instruction label
+        instruction = QLabel("Enter the desired item number (1-32)")
+        instruction.setAlignment(Qt.AlignCenter)
+        instruction.setStyleSheet("font-size: 20px; color: #666666;")
+        layout.addWidget(instruction)
         
         # Item input display
         self.admin_item_display = QLabel("")
