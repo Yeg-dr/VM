@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
-                            QGridLayout, QPushButton, QLabel)
+                            QGridLayout, QPushButton, QLabel, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer
 
 class AdminPanel(QWidget):
@@ -16,7 +16,11 @@ class AdminPanel(QWidget):
         # Title
         title = QLabel("Admin Panel")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 32px;")
+        title.setStyleSheet("""
+            font-size: 36px;
+            font-weight: bold;
+            font-family: Arial;
+        """)
         layout.addWidget(title)
         
         # Item input display
@@ -33,7 +37,7 @@ class AdminPanel(QWidget):
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('C', 3, 0), ('0', 3, 1), ('↵', 3, 2)
+            ('C', 3, 0), ('0', 3, 1), ('Enter', 3, 2)
         ]
         
         for text, row, col in buttons:
@@ -41,7 +45,7 @@ class AdminPanel(QWidget):
             button.setFixedHeight(80)
             if text == 'C':
                 button.setStyleSheet("background-color: #FF5252;")
-            elif text == '↵':
+            elif text == 'Enter':
                 button.setObjectName("action_button")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             keypad_layout.addWidget(button, row, col)
@@ -50,11 +54,6 @@ class AdminPanel(QWidget):
         
         # Admin action buttons
         btn_layout = QHBoxLayout()
-        
-        self.edit_item_btn = QPushButton("Edit Item")
-        self.edit_item_btn.setObjectName("action_button")
-        self.edit_item_btn.clicked.connect(self.on_edit_item)
-        btn_layout.addWidget(self.edit_item_btn)
         
         self.back_to_user_btn = QPushButton("User Panel")
         self.back_to_user_btn.setObjectName("admin_button")
@@ -73,22 +72,38 @@ class AdminPanel(QWidget):
         if text == 'C':
             self.parent.current_input = ""
             self.admin_item_display.setText("")
-        elif text == '↵':
-            self.admin_item_display.setText(self.parent.current_input)
+        elif text == 'Enter':
+            if not self.parent.current_input:
+                return
+                
+            try:
+                item_code = int(self.parent.current_input)
+                if item_code < 1 or item_code > 32:
+                    QMessageBox.warning(self, "Invalid Input", "Please enter a number between 1 and 32.")
+                    self.parent.current_input = ""
+                    self.admin_item_display.setText("")
+                    return
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter a valid number.")
+                self.parent.current_input = ""
+                self.admin_item_display.setText("")
+                return
+                
+            item_code_str = self.parent.current_input
+            self.parent.current_edit_item = item_code_str
+            self.parent.edit_panel.item_code_display.setText(item_code_str)
+            if item_code_str in self.parent.items and item_code_str != "admin_password":
+                self.parent.edit_panel.name_edit.setText(self.parent.items[item_code_str]["name"])
+                self.parent.edit_panel.price_edit.setText(str(self.parent.items[item_code_str]["price"]))
+                self.parent.edit_panel.location_edit.setText(self.parent.items[item_code_str]["location"])
+            else:
+                self.parent.edit_panel.name_edit.setText("")
+                self.parent.edit_panel.price_edit.setText("")
+                self.parent.edit_panel.location_edit.setText("")
+            self.parent.switch_screen(self.parent.edit_panel)
             self.parent.current_input = ""
         else:
+            if len(self.parent.current_input) >= 2:
+                return  # Limit to 2 digits
             self.parent.current_input += text
             self.admin_item_display.setText(self.parent.current_input)
-    
-    def on_edit_item(self):
-        item_code = self.admin_item_display.text()
-        if item_code in self.parent.items and item_code != "admin_password":
-            self.parent.current_edit_item = item_code
-            self.parent.edit_panel.item_code_display.setText(item_code)
-            self.parent.edit_panel.name_edit.setText(self.parent.items[item_code]["name"])
-            self.parent.edit_panel.price_edit.setText(str(self.parent.items[item_code]["price"]))
-            self.parent.edit_panel.location_edit.setText(self.parent.items[item_code]["location"])
-            self.parent.switch_screen(self.parent.edit_panel)
-        else:
-            self.admin_item_display.setText("Invalid item")
-            QTimer.singleShot(2000, lambda: self.admin_item_display.setText(""))
