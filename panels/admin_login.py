@@ -12,10 +12,14 @@ class AdminLogin(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(20)
         
-        # Title
+        # Title - with improved styling
         title = QLabel("Please enter password")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 32px;")
+        title.setStyleSheet("""
+            font-size: 36px;
+            font-weight: bold;
+            font-family: Arial;
+        """)
         layout.addWidget(title)
         
         # Password display
@@ -24,7 +28,7 @@ class AdminLogin(QWidget):
         self.password_display.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.password_display)
         
-        # Keypad
+        # Keypad 
         keypad_layout = QGridLayout()
         keypad_layout.setSpacing(10)
         
@@ -32,7 +36,7 @@ class AdminLogin(QWidget):
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('C', 3, 0), ('0', 3, 1), ('↵', 3, 2)
+            ('C', 3, 0), ('0', 3, 1), ('Enter', 3, 2)
         ]
         
         for text, row, col in buttons:
@@ -40,7 +44,7 @@ class AdminLogin(QWidget):
             button.setFixedHeight(80)
             if text == 'C':
                 button.setStyleSheet("background-color: #FF5252;")
-            elif text == '↵':
+            elif text == 'Enter':  # Updated this condition
                 button.setObjectName("action_button")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             keypad_layout.addWidget(button, row, col)
@@ -57,7 +61,7 @@ class AdminLogin(QWidget):
         if text == 'C':
             self.parent.current_input = ""
             self.password_display.setText("")
-        elif text == '↵':
+        elif text == 'Enter':  # Updated this condition
             self.check_admin_password()
         else:
             self.parent.current_input += text
@@ -65,6 +69,9 @@ class AdminLogin(QWidget):
     
     def check_admin_password(self):
         if self.parent.current_input == self.parent.items.get("admin_password", "1234"):
+            # Clear input before switching panels
+            self.parent.current_input = ""
+            self.password_display.setText("")
             self.parent.switch_screen(self.parent.admin_panel)
         else:
             self.password_display.setText("Wrong password")
