@@ -52,7 +52,7 @@ class EditPanel(QWidget):
         
         self.price_edit = QLineEdit()
         self.price_edit.setReadOnly(True)  # فقط با کیبورد مجازی
-        self.price_edit.setValidator(QtGui.QIntValidator(0, 999999))
+        self.price_edit.setValidator(QtGui.QIntValidator(0, 999999999))
         self.price_edit.mousePressEvent = lambda event: self.show_keyboard(self.price_edit)
         layout.addWidget(self.price_edit)
         
