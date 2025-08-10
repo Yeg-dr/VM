@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
+import json
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                             QLabel, QLineEdit, QPushButton, QMessageBox)
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
@@ -11,19 +12,29 @@ class EditPanel(QWidget):
     
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(20)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
-        # Title
+        # Title and item number display
         self.edit_title = QLabel("Edit Item")
         self.edit_title.setAlignment(Qt.AlignCenter)
-        self.edit_title.setStyleSheet("font-size: 32px;")
+        self.edit_title.setStyleSheet("""
+            font-size: 36px;
+            font-weight: bold;
+            font-family: Arial;
+            color: #333333;
+            margin-bottom: 10px;
+        """)
         layout.addWidget(self.edit_title)
         
-        # Item code display
         self.item_code_display = QLabel("")
-        self.item_code_display.setObjectName("display_label")
         self.item_code_display.setAlignment(Qt.AlignCenter)
+        self.item_code_display.setStyleSheet("""
+            font-size: 40px;
+            font-weight: bold;
+            color: #4A90E2;
+            margin-bottom: 20px;
+        """)
         layout.addWidget(self.item_code_display)
         
         # Name field
@@ -43,25 +54,22 @@ class EditPanel(QWidget):
         self.price_edit.setValidator(QtGui.QIntValidator(0, 999999))
         layout.addWidget(self.price_edit)
         
-        # Location field
+        # Simple location display (replaces matrix)
         self.location_label = QLabel("Location:")
         layout.addWidget(self.location_label)
         
-        self.location_edit = QLineEdit()
-        layout.addWidget(self.location_edit)
+        self.location_display = QLabel("")
+        self.location_display.setAlignment(Qt.AlignCenter)
+        self.location_display.setStyleSheet("""
+            font-size: 24px;
+            font-weight: bold;
+            color: #7ED6DF;
+            margin-bottom: 15px;
+        """)
+        layout.addWidget(self.location_display)
         
         # Action buttons
         btn_layout = QHBoxLayout()
-        
-        self.save_btn = QPushButton("Save")
-        self.save_btn.setObjectName("action_button")
-        self.save_btn.clicked.connect(self.on_save_item)
-        btn_layout.addWidget(self.save_btn)
-        
-        self.delete_btn = QPushButton("Delete")
-        self.delete_btn.setStyleSheet("background-color: #FF5252;")
-        self.delete_btn.clicked.connect(self.on_delete_item)
-        btn_layout.addWidget(self.delete_btn)
         
         self.back_to_admin_btn = QPushButton("Back")
         self.back_to_admin_btn.setObjectName("admin_button")
@@ -69,11 +77,48 @@ class EditPanel(QWidget):
             lambda: self.parent.switch_screen(self.parent.admin_panel))
         btn_layout.addWidget(self.back_to_admin_btn)
         
+        self.delete_btn = QPushButton("Delete")
+        self.delete_btn.setStyleSheet("background-color: #FF5252;")
+        self.delete_btn.clicked.connect(self.on_delete_item)
+        btn_layout.addWidget(self.delete_btn)
+        
+        self.save_btn = QPushButton("Save")
+        self.save_btn.setObjectName("action_button")
+        self.save_btn.clicked.connect(self.on_save_item)
+        btn_layout.addWidget(self.save_btn)
+        
         layout.addLayout(btn_layout)
     
+    def update_location_display(self, location_code):
+        # Simply display the location code
+        if location_code and len(location_code) == 2:
+            self.location_display.setText(location_code)
+        else:
+            self.location_display.setText("")
+
     def show_keyboard(self, event):
         self.parent.keyboard.target = self.name_edit
         self.parent.switch_screen(self.parent.keyboard)
+    
+    def load_item_data(self, item_code):
+        try:
+            with open(self.parent.items_file, 'r') as f:
+                items = json.load(f)
+            
+            if item_code in items:
+                item = items[item_code]
+                self.name_edit.setText(item["name"])
+                self.price_edit.setText(str(item["price"]))
+                self.update_location_display(item["location"])
+            else:
+                self.name_edit.setText("")
+                self.price_edit.setText("")
+                self.update_location_display("")
+        except Exception as e:
+            print(f"Error loading item data: {e}")
+            self.name_edit.setText("")
+            self.price_edit.setText("")
+            self.update_location_display("")
     
     def on_save_item(self):
         reply = QMessageBox.question(
@@ -83,13 +128,32 @@ class EditPanel(QWidget):
         
         if reply == QMessageBox.Yes:
             item_code = self.item_code_display.text()
-            self.parent.items[item_code] = {
-                "name": self.name_edit.text(),
-                "price": int(self.price_edit.text()),
-                "location": self.location_edit.text()
-            }
-            self.parent.save_items()
-            self.parent.switch_screen(self.parent.admin_panel)
+            try:
+                # Load current data from file
+                with open(self.parent.items_file, 'r') as f:
+                    items = json.load(f)
+                
+                # Get the current location from display
+                location = self.location_display.text()
+                
+                if not location:
+                    QMessageBox.warning(self, "Error", "Location not set")
+                    return
+                
+                # Update item data
+                items[item_code] = {
+                    "name": self.name_edit.text(),
+                    "price": int(self.price_edit.text()),
+                    "location": location
+                }
+                
+                # Save back to file
+                with open(self.parent.items_file, 'w') as f:
+                    json.dump(items, f, indent=4)
+                
+                self.parent.switch_screen(self.parent.admin_panel)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to save item: {str(e)}")
     
     def on_delete_item(self):
         reply = QMessageBox.question(
@@ -99,7 +163,18 @@ class EditPanel(QWidget):
         
         if reply == QMessageBox.Yes:
             item_code = self.item_code_display.text()
-            if item_code in self.parent.items:
-                del self.parent.items[item_code]
-                self.parent.save_items()
-            self.parent.switch_screen(self.parent.admin_panel)
+            try:
+                # Load current data from file
+                with open(self.parent.items_file, 'r') as f:
+                    items = json.load(f)
+                
+                if item_code in items:
+                    del items[item_code]
+                    
+                    # Save back to file
+                    with open(self.parent.items_file, 'w') as f:
+                        json.dump(items, f, indent=4)
+                
+                self.parent.switch_screen(self.parent.admin_panel)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to delete item: {str(e)}")

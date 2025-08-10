@@ -101,14 +101,10 @@ class AdminPanel(QWidget):
             item_code_str = self.parent.current_input
             self.parent.current_edit_item = item_code_str
             self.parent.edit_panel.item_code_display.setText(item_code_str)
-            if item_code_str in self.parent.items and item_code_str != "admin_password":
-                self.parent.edit_panel.name_edit.setText(self.parent.items[item_code_str]["name"])
-                self.parent.edit_panel.price_edit.setText(str(self.parent.items[item_code_str]["price"]))
-                self.parent.edit_panel.location_edit.setText(self.parent.items[item_code_str]["location"])
-            else:
-                self.parent.edit_panel.name_edit.setText("")
-                self.parent.edit_panel.price_edit.setText("")
-                self.parent.edit_panel.location_edit.setText("")
+            
+            # Load item data through the proper method
+            self.parent.edit_panel.load_item_data(item_code_str)
+            
             self.parent.switch_screen(self.parent.edit_panel)
             self.parent.current_input = ""
         else:

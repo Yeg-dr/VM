@@ -1,18 +1,163 @@
 {
-    "11": {
-        "name": "Water",
-        "price": 10000,
+    "admin_password": "1234",
+    "1": {
+        "name": "",
+        "price": 0,
         "location": "A1"
     },
-    "12": {
-        "name": "Chips",
-        "price": 15000,
+    "2": {
+        "name": "",
+        "price": 0,
+        "location": "A2"
+    },
+    "3": {
+        "name": "",
+        "price": 0,
         "location": "A3"
     },
-    "13": {
-        "name": "Soda",
-        "price": 18000,
+    "4": {
+        "name": "",
+        "price": 0,
+        "location": "A4"
+    },
+    "5": {
+        "name": "",
+        "price": 0,
         "location": "B1"
     },
-    "admin_password": "1234"
+    "6": {
+        "name": "",
+        "price": 0,
+        "location": "B2"
+    },
+    "7": {
+        "name": "",
+        "price": 0,
+        "location": "B3"
+    },
+    "8": {
+        "name": "",
+        "price": 0,
+        "location": "B4"
+    },
+    "9": {
+        "name": "",
+        "price": 0,
+        "location": "C1"
+    },
+    "10": {
+        "name": "",
+        "price": 0,
+        "location": "C2"
+    },
+    "11": {
+        "name": "",
+        "price": 0,
+        "location": "C3"
+    },
+    "12": {
+        "name": "",
+        "price": 0,
+        "location": "C4"
+    },
+    "13": {
+        "name": "",
+        "price": 0,
+        "location": "D1"
+    },
+    "14": {
+        "name": "",
+        "price": 0,
+        "location": "D2"
+    },
+    "15": {
+        "name": "",
+        "price": 0,
+        "location": "D3"
+    },
+    "16": {
+        "name": "",
+        "price": 0,
+        "location": "D4"
+    },
+    "17": {
+        "name": "",
+        "price": 0,
+        "location": "E1"
+    },
+    "18": {
+        "name": "",
+        "price": 0,
+        "location": "E2"
+    },
+    "19": {
+        "name": "",
+        "price": 0,
+        "location": "E3"
+    },
+    "20": {
+        "name": "",
+        "price": 0,
+        "location": "E4"
+    },
+    "21": {
+        "name": "",
+        "price": 0,
+        "location": "F1"
+    },
+    "22": {
+        "name": "",
+        "price": 0,
+        "location": "F2"
+    },
+    "23": {
+        "name": "",
+        "price": 0,
+        "location": "F3"
+    },
+    "24": {
+        "name": "",
+        "price": 0,
+        "location": "F4"
+    },
+    "25": {
+        "name": "",
+        "price": 0,
+        "location": "G1"
+    },
+    "26": {
+        "name": "",
+        "price": 0,
+        "location": "G2"
+    },
+    "27": {
+        "name": "",
+        "price": 0,
+        "location": "G3"
+    },
+    "28": {
+        "name": "",
+        "price": 0,
+        "location": "G4"
+    },
+    "29": {
+        "name": "",
+        "price": 0,
+        "location": "H1"
+    },
+    "30": {
+        "name": "",
+        "price": 0,
+        "location": "H2"
+    },
+    "31": {
+        "name": "",
+        "price": 0,
+        "location": "H3"
+    },
+    "32": {
+        "name": "",
+        "price": 0,
+        "location": "H4"
+    }
 }

@@ -110,16 +110,23 @@ class VendingMachineApp(QMainWindow):
                 with open(self.items_file, 'r') as f:
                     self.items = json.load(f)
             else:
-                # Create default items
-                self.items = {
-                    "11": {"name": "Water", "price": 10000, "location": "A1"},
-                    "12": {"name": "Chips", "price": 15000, "location": "A3"},
-                    "13": {"name": "Soda", "price": 18000, "location": "B1"},
-                    "admin_password": "1234"
-                }
+                # Create default structure with all 32 slots
+                self.items = {"admin_password": "1234"}
+                
+                # Add all 32 item slots with fixed locations
+                rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+                for i in range(1, 33):
+                    row = rows[(i-1)//4]
+                    col = (i-1)%4 + 1
+                    self.items[str(i)] = {
+                        "name": "",
+                        "price": 0,
+                        "location": f"{row}{col}"
+                    }
+                
                 self.save_items()
         except Exception as e:
-            print(f"Failed to load items: {str(e)}")
+            print(f"Error loading items: {str(e)}")
             self.items = {}
     
     def save_items(self):
