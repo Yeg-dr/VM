@@ -42,8 +42,8 @@ class EditPanel(QWidget):
         layout.addWidget(self.name_label)
         
         self.name_edit = QLineEdit()
-        self.name_edit.setReadOnly(True)
-        self.name_edit.mousePressEvent = self.show_keyboard
+        self.name_edit.setReadOnly(True)  # فقط با کیبورد مجازی
+        self.name_edit.mousePressEvent = lambda event: self.show_keyboard(self.name_edit)
         layout.addWidget(self.name_edit)
         
         # Price field
@@ -51,10 +51,12 @@ class EditPanel(QWidget):
         layout.addWidget(self.price_label)
         
         self.price_edit = QLineEdit()
+        self.price_edit.setReadOnly(True)  # فقط با کیبورد مجازی
         self.price_edit.setValidator(QtGui.QIntValidator(0, 999999))
+        self.price_edit.mousePressEvent = lambda event: self.show_keyboard(self.price_edit)
         layout.addWidget(self.price_edit)
         
-        # Simple location display (replaces matrix)
+        # Simple location display (read-only)
         self.location_label = QLabel("Location:")
         layout.addWidget(self.location_label)
         
@@ -90,20 +92,21 @@ class EditPanel(QWidget):
         layout.addLayout(btn_layout)
     
     def update_location_display(self, location_code):
-        # Simply display the location code
         if location_code and len(location_code) == 2:
             self.location_display.setText(location_code)
         else:
             self.location_display.setText("")
 
-    def show_keyboard(self, event):
-        self.parent.keyboard.target = self.name_edit
+    def show_keyboard(self, target_field):
+        self.parent.keyboard.target = target_field
         self.parent.switch_screen(self.parent.keyboard)
     
     def load_item_data(self, item_code):
         try:
             with open(self.parent.items_file, 'r') as f:
                 items = json.load(f)
+            
+            self.item_code_display.setText(item_code)  # مهم برای ذخیره‌سازی
             
             if item_code in items:
                 item = items[item_code]
@@ -116,6 +119,7 @@ class EditPanel(QWidget):
                 self.update_location_display("")
         except Exception as e:
             print(f"Error loading item data: {e}")
+            self.item_code_display.setText("")
             self.name_edit.setText("")
             self.price_edit.setText("")
             self.update_location_display("")
@@ -129,25 +133,17 @@ class EditPanel(QWidget):
         if reply == QMessageBox.Yes:
             item_code = self.item_code_display.text()
             try:
-                # Load current data from file
                 with open(self.parent.items_file, 'r') as f:
                     items = json.load(f)
                 
-                # Get the current location from display
-                location = self.location_display.text()
-                
-                if not location:
-                    QMessageBox.warning(self, "Error", "Location not set")
+                if item_code not in items:
+                    QMessageBox.warning(self, "Error", "Invalid item code")
                     return
                 
-                # Update item data
-                items[item_code] = {
-                    "name": self.name_edit.text(),
-                    "price": int(self.price_edit.text()),
-                    "location": location
-                }
+                # فقط اسم و قیمت تغییر می‌کنند
+                items[item_code]["name"] = self.name_edit.text()
+                items[item_code]["price"] = int(self.price_edit.text()) if self.price_edit.text() else 0
                 
-                # Save back to file
                 with open(self.parent.items_file, 'w') as f:
                     json.dump(items, f, indent=4)
                 
@@ -157,24 +153,24 @@ class EditPanel(QWidget):
     
     def on_delete_item(self):
         reply = QMessageBox.question(
-            self, 'Confirm', 'Are you sure you want to delete this item?',
+            self, 'Confirm', 'Are you sure you want to clear this item?',
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
             item_code = self.item_code_display.text()
             try:
-                # Load current data from file
                 with open(self.parent.items_file, 'r') as f:
                     items = json.load(f)
                 
                 if item_code in items:
-                    del items[item_code]
+                    # فقط name و price رو ریست کن، location رو نگه دار
+                    items[item_code]["name"] = ""
+                    items[item_code]["price"] = 0
                     
-                    # Save back to file
                     with open(self.parent.items_file, 'w') as f:
                         json.dump(items, f, indent=4)
                 
                 self.parent.switch_screen(self.parent.admin_panel)
             except Exception as e:
-                QMessageBox.warning(self, "Error", f"Failed to delete item: {str(e)}")
+                QMessageBox.warning(self, "Error", f"Failed to clear item: {str(e)}")
