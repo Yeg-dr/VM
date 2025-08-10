@@ -1,13 +1,13 @@
 {
-    "admin_password": "1234",
+    "admin_password": "1111",
     "1": {
-        "name": "",
-        "price": 0,
+        "name": "WATER",
+        "price": 20000,
         "location": "A1"
     },
     "2": {
-        "name": "",
-        "price": 0,
+        "name": "COCA",
+        "price": 120000,
         "location": "A2"
     },
     "3": {
