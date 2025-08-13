@@ -15,6 +15,7 @@ class AdminPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
         
+        # Title
         title = QLabel("Admin Panel")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
@@ -24,16 +25,19 @@ class AdminPanel(QWidget):
         """)
         layout.addWidget(title)
         
+        # Instruction label
         instruction = QLabel("Enter the desired item number (1-32)")
         instruction.setAlignment(Qt.AlignCenter)
         instruction.setStyleSheet("font-size: 20px; color: #666666;")
         layout.addWidget(instruction)
         
+        # Item input display
         self.admin_item_display = QLabel("")
         self.admin_item_display.setObjectName("display_label")
         self.admin_item_display.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.admin_item_display)
         
+        # Move keypad higher in the layout
         keypad_layout = QGridLayout()
         keypad_layout.setSpacing(10)
         buttons = [
@@ -52,31 +56,41 @@ class AdminPanel(QWidget):
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             keypad_layout.addWidget(button, row, col)
         layout.addLayout(keypad_layout)
-        
-        btn_layout = QHBoxLayout()
-        self.back_to_user_btn = QPushButton("User Panel")
-        self.back_to_user_btn.setObjectName("admin_button")
-        self.back_to_user_btn.clicked.connect(
-            lambda: self.parent.switch_screen(self.parent.user_panel))
-        btn_layout.addWidget(self.back_to_user_btn)
-        
-        self.exit_app_btn = QPushButton("Exit")
-        self.exit_app_btn.setStyleSheet("background-color: #FF5252;")
-        self.exit_app_btn.clicked.connect(self.parent.close)
-        btn_layout.addWidget(self.exit_app_btn)
 
+        # --- NEW ROW FOR CHANGE PASSWORD AND SHOW ITEMS ---
+        top_btn_row = QHBoxLayout()
         self.change_password_btn = QPushButton("Change Password")
         self.change_password_btn.setObjectName("admin_button")
+        self.change_password_btn.setFixedHeight(60)
         self.change_password_btn.clicked.connect(self.on_change_password_clicked)
-        btn_layout.addWidget(self.change_password_btn)
+        top_btn_row.addWidget(self.change_password_btn)
 
         self.show_items_btn = QPushButton("Show Items")
         self.show_items_btn.setObjectName("admin_button")
+        self.show_items_btn.setFixedHeight(60)
         self.show_items_btn.clicked.connect(self.on_show_items_clicked)
-        btn_layout.addWidget(self.show_items_btn)
+        top_btn_row.addWidget(self.show_items_btn)
+        layout.addLayout(top_btn_row)
+        # --- END NEW ROW ---
 
-        layout.addLayout(btn_layout)
-    
+        # --- ROW FOR USER PANEL AND EXIT BUTTONS ---
+        bottom_btn_row = QHBoxLayout()
+        self.back_to_user_btn = QPushButton("User Panel")
+        self.back_to_user_btn.setObjectName("admin_button")
+        self.back_to_user_btn.setFixedHeight(60)
+        self.back_to_user_btn.clicked.connect(
+            lambda: self.parent.switch_screen(self.parent.user_panel))
+        bottom_btn_row.addWidget(self.back_to_user_btn)
+        
+        self.exit_app_btn = QPushButton("Exit")
+        self.exit_app_btn.setStyleSheet("background-color: #FF5252;")
+        self.exit_app_btn.setFixedHeight(60)
+        self.exit_app_btn.clicked.connect(self.parent.close)
+        bottom_btn_row.addWidget(self.exit_app_btn)
+
+        layout.addLayout(bottom_btn_row)
+        # --- END ROW ---
+
     def on_keypad_clicked(self, text):
         if text == 'C':
             self.parent.current_input = ""
