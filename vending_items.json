@@ -1,5 +1,5 @@
 {
-    "admin_password": "1111",
+    "admin_password": "1",
     "1": {
         "name": "WATER",
         "price": 20000,
@@ -11,18 +11,18 @@
         "location": "A2"
     },
     "3": {
-        "name": "",
-        "price": 0,
+        "name": "APPLE",
+        "price": 30000,
         "location": "A3"
     },
     "4": {
-        "name": "",
-        "price": 0,
+        "name": "BANANA",
+        "price": 50000,
         "location": "A4"
     },
     "5": {
-        "name": "",
-        "price": 0,
+        "name": "BERRY",
+        "price": 45000,
         "location": "B1"
     },
     "6": {
