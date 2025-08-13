@@ -7,15 +7,28 @@ from panels.admin_login import AdminLogin
 from panels.admin_panel import AdminPanel
 from panels.edit_panel import EditPanel
 from panels.keyboard import Keyboard
+from panels.change_password_panel import ChangePasswordPanel
+from panels.items_list_panel import ItemsListPanel
 
 class VendingMachineApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setup_ui()
+        self.items_file = "vending_items.json"
         self.load_items()
         self.current_input = ""
         self.selected_items = []
         self.total_price = 0
+
+        # Panels are instantiated after loading items_file
+        self.user_panel = UserPanel(self)
+        self.admin_login = AdminLogin(self)
+        self.admin_panel = AdminPanel(self)
+        self.edit_panel = EditPanel(self)
+        self.keyboard = Keyboard(self)
+        self.change_password_panel = ChangePasswordPanel(self, items_file=self.items_file)
+        self.items_list_panel = ItemsListPanel(self, items_file=self.items_file)
+
+        self.setup_ui()
         
     def setup_ui(self):
         # Main window configuration
@@ -34,19 +47,14 @@ class VendingMachineApp(QMainWindow):
         self.stacked_widget = QStackedWidget()
         self.main_layout.addWidget(self.stacked_widget)
         
-        # Create all panels
-        self.user_panel = UserPanel(self)
-        self.admin_login = AdminLogin(self)
-        self.admin_panel = AdminPanel(self)
-        self.edit_panel = EditPanel(self)
-        self.keyboard = Keyboard(self)
-        
         # Add panels to stacked widget
         self.stacked_widget.addWidget(self.user_panel)
         self.stacked_widget.addWidget(self.admin_login)
         self.stacked_widget.addWidget(self.admin_panel)
         self.stacked_widget.addWidget(self.edit_panel)
         self.stacked_widget.addWidget(self.keyboard)
+        self.stacked_widget.addWidget(self.change_password_panel)
+        self.stacked_widget.addWidget(self.items_list_panel)
         
         # Set initial screen
         self.stacked_widget.setCurrentWidget(self.user_panel)
@@ -110,10 +118,7 @@ class VendingMachineApp(QMainWindow):
                 with open(self.items_file, 'r') as f:
                     self.items = json.load(f)
             else:
-                # Create default structure with all 32 slots
                 self.items = {"admin_password": "1234"}
-                
-                # Add all 32 item slots with fixed locations
                 rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
                 for i in range(1, 33):
                     row = rows[(i-1)//4]
@@ -123,7 +128,6 @@ class VendingMachineApp(QMainWindow):
                         "price": 0,
                         "location": f"{row}{col}"
                     }
-                
                 self.save_items()
         except Exception as e:
             print(f"Error loading items: {str(e)}")
