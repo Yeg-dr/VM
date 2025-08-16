@@ -1,8 +1,8 @@
 {
-    "admin_password": "2",
+    "admin_password": "0",
     "1": {
-        "name": "",
-        "price": 0,
+        "name": "WATER",
+        "price": 10000,
         "location": "A1"
     },
     "2": {
