@@ -124,7 +124,7 @@ class UserPanel(QWidget):
             return
             
         selected_display = "\n".join([
-            f"{i['name']} - ${i['price']/100:.2f}" 
+            f"{i['name']} - T{i['price']/100:.2f}" 
             for i in self.selected_items
         ])
         self.display_label.setText(
@@ -176,6 +176,7 @@ class UserPanel(QWidget):
             QTimer.singleShot(1500, self.start_dispensing)
         else:
             self.display_label.setText("Payment failed\nPlease try again")
+            self.confirm_pay_btn.setEnabled(True) 
             QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
 
     def start_dispensing(self):
