@@ -68,9 +68,8 @@ class UserPanel(QWidget):
         layout.addWidget(self.admin_btn)
 
     def load_items(self):
-        json_path = os.path.join(os.path.dirname(__file__), 'vending_items.json')
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 self.items = json.load(f)
             self.json_error = False
         except Exception as e:

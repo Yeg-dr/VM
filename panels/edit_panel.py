@@ -103,7 +103,7 @@ class EditPanel(QWidget):
     
     def load_item_data(self, item_code):
         try:
-            with open(self.parent.items_file, 'r') as f:
+            with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 items = json.load(f)
             
             self.item_code_display.setText(item_code)  # مهم برای ذخیره‌سازی

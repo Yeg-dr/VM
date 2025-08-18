@@ -86,7 +86,7 @@ class ChangePasswordPanel(QWidget):
 
     def check_old_password(self):
         try:
-            with open(self.items_file, "r") as f:
+            with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             current_pass = str(data.get("admin_password", ""))
             if self.current_input == current_pass:
@@ -107,7 +107,7 @@ class ChangePasswordPanel(QWidget):
             QMessageBox.warning(self, "Error", "Password must be numbers only.")
             return
         try:
-            with open(self.items_file, "r") as f:
+            with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             data["admin_password"] = new_pass
             with open(self.items_file, "w") as f:

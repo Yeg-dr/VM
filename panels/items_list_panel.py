@@ -22,7 +22,7 @@ class ItemsListPanel(QWidget):
     def load_items(self):
         self.list_widget.clear()
         try:
-            with open(self.items_file, "r") as f:
+            with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             for key in sorted(data.keys(), key=lambda x: int(x) if x.isdigit() else 999):
                 if key == "admin_password":
