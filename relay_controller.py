@@ -31,5 +31,8 @@ class RelayController:
                 # Simulate relay activation (replace with real hardware call later)
                 print(f"Activating relay for location {location} (item: {item['name']})")
                 time.sleep(2)  # mock delay for effect
+            else:
+                status_callback(f"Error: Item code {item['code']} not found!")
+                time.sleep(1)
 
         status_callback("Dispensing completed successfully")
