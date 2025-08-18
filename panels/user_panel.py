@@ -187,6 +187,7 @@ class UserPanel(QWidget):
             self.selected_items = []
             self.total_price = 0
             self.current_input = ""
+            self.update_selection_display()
             QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
 
         self.relay_controller.dispense(self.selected_items, status_callback)
