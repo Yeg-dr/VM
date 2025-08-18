@@ -142,7 +142,12 @@ class EditPanel(QWidget):
                 
                 # فقط اسم و قیمت تغییر می‌کنند
                 items[item_code]["name"] = self.name_edit.text()
-                items[item_code]["price"] = int(self.price_edit.text()) if self.price_edit.text() else 0
+                price_str = self.price_edit.text()
+                try:
+                    price = int(price_str)
+                except ValueError:
+                    price = 0
+                items[item_code]["price"] = price
                 
                 with open(self.parent.items_file, 'w') as f:
                     json.dump(items, f, indent=4)
@@ -171,7 +176,7 @@ class EditPanel(QWidget):
                     
                     with open(self.parent.items_file, 'w') as f:
                         json.dump(items, f, indent=4)
-                        
+
                 self.parent.load_items()
                 self.parent.switch_screen(self.parent.admin_panel)
             except Exception as e:
