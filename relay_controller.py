@@ -1,5 +1,3 @@
-# relay_controller.py
-
 import time
 
 class RelayController:
@@ -22,12 +20,16 @@ class RelayController:
             selected_items (list): List of item dicts as selected by user (order preserved).
             status_callback (callable): Function to update status messages. Receives a single str argument.
         """
+        status_callback("Starting dispensing process...")
+        time.sleep(1)
+        
         for item in selected_items:
             info = self.item_lookup_func(item["code"])
-            location = info.get("location", None)
-            status_callback(f"Dispensing item: {item['name']}...")
-            # Simulate relay activation (replace with real hardware call later)
-            print(f"Activating relay for location {location} (item: {item['name']})")
-            time.sleep(1)  # mock delay for effect
+            if info:
+                location = info.get("location", "Unknown")
+                status_callback(f"Dispensing: {item['name']} from {location}...")
+                # Simulate relay activation (replace with real hardware call later)
+                print(f"Activating relay for location {location} (item: {item['name']})")
+                time.sleep(2)  # mock delay for effect
 
-        status_callback("All items were successfully dispensed")
+        status_callback("Dispensing completed successfully")
