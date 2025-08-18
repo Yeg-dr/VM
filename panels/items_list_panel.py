@@ -24,7 +24,8 @@ class ItemsListPanel(QWidget):
         try:
             with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            for key in sorted(data.keys(), key=lambda x: int(x) if x.isdigit() else 999):
+            keys = [k for k in data.keys() if k.isdigit()]
+            for key in sorted(keys, key=int):
                 if key == "admin_password":
                     continue
                 item = data[key]
