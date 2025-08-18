@@ -146,7 +146,8 @@ class EditPanel(QWidget):
                 
                 with open(self.parent.items_file, 'w') as f:
                     json.dump(items, f, indent=4)
-                
+
+                self.parent.load_items()
                 self.parent.switch_screen(self.parent.admin_panel)
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to save item: {str(e)}")
@@ -170,7 +171,8 @@ class EditPanel(QWidget):
                     
                     with open(self.parent.items_file, 'w') as f:
                         json.dump(items, f, indent=4)
-                
+                        
+                self.parent.load_items()
                 self.parent.switch_screen(self.parent.admin_panel)
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to clear item: {str(e)}")
