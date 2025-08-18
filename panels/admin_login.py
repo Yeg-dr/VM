@@ -68,6 +68,12 @@ class AdminLogin(QWidget):
             self.password_display.setText("*" * len(self.parent.current_input))
     
     def check_admin_password(self):
+        try:
+            password = self.parent.items.get("admin_password", "1234")
+        except Exception as e:
+            self.password_display.setText("Fatal error: Items DB missing/corrupt")
+            self.setDisabled(True)
+            return
         if self.parent.current_input == self.parent.items.get("admin_password", "1234"):
             # Clear input before switching panels
             self.parent.current_input = ""
