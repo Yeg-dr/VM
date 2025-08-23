@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel, QHBoxLayout
 from PyQt5.QtCore import Qt, QTimer
 import json
 import os
@@ -33,11 +33,12 @@ class UserPanel(QWidget):
         self.keypad_layout = QGridLayout()
         self.keypad_layout.setSpacing(10)
 
+        # Remove ↵ button from keypad
         buttons = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('C', 3, 0), ('0', 3, 1), ('↵', 3, 2)
+            ('C', 3, 0), ('0', 3, 1)
         ]
 
         for text, row, col in buttons:
@@ -45,27 +46,30 @@ class UserPanel(QWidget):
             button.setFixedHeight(80)
             if text == 'C':
                 button.setStyleSheet("background-color: #FF5252;")
-            elif text == '↵':
-                button.setObjectName("action_button")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             self.keypad_layout.addWidget(button, row, col)
 
         layout.addLayout(self.keypad_layout)
 
-        self.select_another_btn = QPushButton("Select Another Item")
-        self.select_another_btn.setObjectName("action_button")
-        self.select_another_btn.clicked.connect(self.on_select_another)
-        layout.addWidget(self.select_another_btn)
+        # Three buttons below keypad: Confirm, Pay, Admin
+        button_row = QHBoxLayout()
 
-        self.confirm_pay_btn = QPushButton("Confirm and Pay")
+        self.confirm_btn = QPushButton("Confirm")
+        self.confirm_btn.setObjectName("action_button")
+        self.confirm_btn.clicked.connect(self.on_confirm_item)
+        button_row.addWidget(self.confirm_btn)
+
+        self.confirm_pay_btn = QPushButton("Pay")
         self.confirm_pay_btn.setObjectName("action_button")
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
-        layout.addWidget(self.confirm_pay_btn)
+        button_row.addWidget(self.confirm_pay_btn)
 
         self.admin_btn = QPushButton("Admin")
         self.admin_btn.setObjectName("admin_button")
         self.admin_btn.clicked.connect(lambda: self.parent.switch_screen(self.parent.admin_login))
-        layout.addWidget(self.admin_btn)
+        button_row.addWidget(self.admin_btn)
+
+        layout.addLayout(button_row)
 
     def load_items(self):
         try:
@@ -86,17 +90,19 @@ class UserPanel(QWidget):
         if self.json_error:
             self.display_label.setText("Cannot operate: Items DB error")
             return
-            
+
         if text == 'C':
             self.current_input = ""
             self.display_label.setText("Ready")
-        elif text == '↵':
-            self.process_item_selection()
         else:
             self.current_input += text
             self.display_label.setText(f"Entered: {self.current_input}")
 
-    def process_item_selection(self):
+    def on_confirm_item(self):
+        if self.json_error:
+            self.display_label.setText("Cannot operate: Items DB error")
+            return
+
         if not self.current_input:
             self.display_label.setText("Please enter an item code")
             QTimer.singleShot(2000, lambda: self.display_label.setText("Ready"))
@@ -113,6 +119,10 @@ class UserPanel(QWidget):
             self.total_price += item["price"]
             self.update_selection_display()
             self.current_input = ""
+            self.display_label.setText(
+                f"Item added: {item['name']} - ${item['price']/100:.2f}\n"
+                f"Total: ${self.total_price/100:.2f}\nSelect another item or press Pay."
+            )
         else:
             self.display_label.setText(f"Item {self.current_input} not available")
             self.current_input = ""
@@ -122,9 +132,9 @@ class UserPanel(QWidget):
         if not self.selected_items:
             self.display_label.setText("Ready")
             return
-            
+
         selected_display = "\n".join([
-            f"{i['name']} - T{i['price']/100:.2f}" 
+            f"{i['name']} - ${i['price']/100:.2f}"
             for i in self.selected_items
         ])
         self.display_label.setText(
@@ -132,21 +142,11 @@ class UserPanel(QWidget):
             f"Total: ${self.total_price/100:.2f}"
         )
 
-    def on_select_another(self):
-        if self.json_error:
-            self.display_label.setText("Cannot operate: Items DB error")
-            return
-        self.current_input = ""
-        if self.selected_items:
-            self.update_selection_display()
-        else:
-            self.display_label.setText("Ready")
-
     def on_confirm_pay(self):
         if self.json_error:
             self.display_label.setText("Cannot operate: Items DB error")
             return
-            
+
         if not self.selected_items:
             self.display_label.setText("Please select an item first")
             QTimer.singleShot(2000, lambda: self.display_label.setText("Ready"))
@@ -157,7 +157,7 @@ class UserPanel(QWidget):
         for item in self.selected_items:
             if not self.item_lookup(item["code"]) or not self.item_lookup(item["code"]).get('name'):
                 invalid_items.append(item["code"])
-        
+
         if invalid_items:
             self.display_label.setText(f"Items {', '.join(invalid_items)} not available")
             QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
@@ -182,7 +182,7 @@ class UserPanel(QWidget):
     def start_dispensing(self):
         def status_callback(msg):
             self.display_label.setText(msg)
-            
+
         def dispensing_complete():
             self.display_label.setText("All items were successfully dispensed")
             self.selected_items = []
