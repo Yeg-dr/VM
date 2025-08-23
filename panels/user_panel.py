@@ -1,10 +1,80 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel, QHBoxLayout
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel,
+    QHBoxLayout, QDialog, QDialogButtonBox, QScrollArea
+)
 from PyQt5.QtCore import Qt
 import json
 import os
 
 from card_reader import CardReader
 from relay_controller import RelayController
+
+
+class ConfirmDialog(QDialog):
+    def __init__(self, items, total_price, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Confirm Payment")
+        self.setModal(True)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #F9F9F9;
+                border-radius: 15px;
+            }
+            QLabel {
+                font-size: 20px;
+                color: #333;
+            }
+            QPushButton {
+                min-height: 50px;
+                border-radius: 10px;
+                font-size: 20px;
+                padding: 6px;
+            }
+            QPushButton#confirm {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QPushButton#cancel {
+                background-color: #B0BEC5;
+                color: #333;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+
+        # Scrollable area in case many items
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        for item in items:
+            lbl = QLabel(f"{item['name']} - ${item['price']/100:.2f}")
+            lbl.setAlignment(Qt.AlignLeft)
+            scroll_layout.addWidget(lbl)
+
+        total_lbl = QLabel(f"\nTotal: ${total_price/100:.2f}")
+        total_lbl.setAlignment(Qt.AlignLeft)
+        scroll_layout.addWidget(total_lbl)
+
+        scroll.setWidget(scroll_widget)
+        layout.addWidget(scroll)
+
+        # Buttons
+        btn_box = QHBoxLayout()
+        self.confirm_btn = QPushButton("Confirm")
+        self.confirm_btn.setObjectName("confirm")
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setObjectName("cancel")
+
+        self.confirm_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        btn_box.addWidget(self.cancel_btn)
+        btn_box.addWidget(self.confirm_btn)
+        layout.addLayout(btn_box)
+
 
 class UserPanel(QWidget):
     def __init__(self, parent):
@@ -28,12 +98,13 @@ class UserPanel(QWidget):
         self.display_label = QLabel("Ready")
         self.display_label.setObjectName("display_label")
         self.display_label.setAlignment(Qt.AlignCenter)
+        self.display_label.setWordWrap(True)
         layout.addWidget(self.display_label)
 
         self.keypad_layout = QGridLayout()
-        self.keypad_layout.setSpacing(10)
+        self.keypad_layout.setSpacing(8)
 
-        # Keypad as before, no ↵ button
+        # Keypad buttons
         buttons = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
@@ -43,7 +114,7 @@ class UserPanel(QWidget):
 
         for text, row, col in buttons:
             button = QPushButton(text)
-            button.setFixedHeight(80)
+            button.setFixedHeight(60)  # reduced height
             if text == 'C':
                 button.setStyleSheet("background-color: #FF5252;")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
@@ -51,38 +122,40 @@ class UserPanel(QWidget):
 
         layout.addLayout(self.keypad_layout)
 
-        # Vertical button group below keypad
+        # Vertical button group
         button_group_layout = QVBoxLayout()
-        button_group_layout.setSpacing(15)
+        button_group_layout.setSpacing(12)
 
         self.confirm_btn = QPushButton("Enter")
         self.confirm_btn.setObjectName("action_button")
-        self.confirm_btn.setFixedHeight(80)
+        self.confirm_btn.setFixedHeight(60)
         self.confirm_btn.clicked.connect(self.on_confirm_item)
         button_group_layout.addWidget(self.confirm_btn)
 
         self.confirm_pay_btn = QPushButton("Pay")
         self.confirm_pay_btn.setObjectName("action_button")
-        self.confirm_pay_btn.setFixedHeight(80)
-        self.confirm_pay_btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 10px; font-size: 24px;")
+        self.confirm_pay_btn.setFixedHeight(60)
+        self.confirm_pay_btn.setStyleSheet(
+            "background-color: #4CAF50; color: white; border-radius: 10px; font-size: 22px;")
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
         button_group_layout.addWidget(self.confirm_pay_btn)
 
-        # Admin and Cancel row (swapped positions, Cancel is larger)
+        # Admin and Cancel row
         admin_cancel_row = QHBoxLayout()
-        admin_cancel_row.setSpacing(10)
+        admin_cancel_row.setSpacing(8)
 
         self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setFixedHeight(80)
-        self.cancel_btn.setMinimumWidth(180)
-        self.cancel_btn.setStyleSheet("background-color: #B0BEC5; color: #333; border-radius: 10px; font-size: 24px;")
+        self.cancel_btn.setFixedHeight(60)
+        self.cancel_btn.setMinimumWidth(160)
+        self.cancel_btn.setStyleSheet(
+            "background-color: #B0BEC5; color: #333; border-radius: 10px; font-size: 22px;")
         self.cancel_btn.clicked.connect(self.on_cancel)
         admin_cancel_row.addWidget(self.cancel_btn, stretch=2)
 
         self.admin_btn = QPushButton("Admin")
         self.admin_btn.setObjectName("admin_button")
-        self.admin_btn.setFixedHeight(80)
-        self.admin_btn.setFixedWidth(120)
+        self.admin_btn.setFixedHeight(60)
+        self.admin_btn.setFixedWidth(100)
         self.admin_btn.clicked.connect(lambda: self.parent.switch_screen(self.parent.admin_login))
         admin_cancel_row.addWidget(self.admin_btn, stretch=1)
 
@@ -94,14 +167,13 @@ class UserPanel(QWidget):
             with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 self.items = json.load(f)
             self.json_error = False
-        except Exception as e:
+        except Exception:
             self.items = {}
             self.json_error = True
             self.display_label.setText("Fatal error: Items DB missing/corrupt")
             self.setDisabled(True)
 
     def item_lookup(self, code):
-        """ Returns the item dict for the given code, or None """
         return self.items.get(str(code), None)
 
     def on_keypad_clicked(self, text):
@@ -123,7 +195,7 @@ class UserPanel(QWidget):
 
         if not self.current_input:
             self.display_label.setText("Please enter an item code")
-            return  # No timeout
+            return
 
         item = self.item_lookup(self.current_input)
         if item and item.get('name') and item.get('price', 0) > 0:
@@ -135,20 +207,10 @@ class UserPanel(QWidget):
             })
             self.total_price += item["price"]
             self.update_selection_display()
-            # Immediately clear input after confirmation
             self.current_input = ""
-            selected_display = "\n".join([
-                f"{i['name']} - ${i['price']/100:.2f}"
-                for i in self.selected_items
-            ])
-            self.display_label.setText(
-                f"Selected Items:\n{selected_display}\n"
-                f"Total: ${self.total_price/100:.2f}\nSelect another item or press Pay."
-            )
         else:
             self.display_label.setText(f"Item {self.current_input} not available")
             self.current_input = ""
-            # No timeout
 
     def update_selection_display(self):
         if not self.selected_items:
@@ -171,24 +233,25 @@ class UserPanel(QWidget):
 
         if not self.selected_items:
             self.display_label.setText("Please select an item first")
-            return  # No timeout
+            return
 
-        # Check if all selected items are valid
-        invalid_items = []
-        for item in self.selected_items:
-            if not self.item_lookup(item["code"]) or not self.item_lookup(item["code"]).get('name'):
-                invalid_items.append(item["code"])
-
+        invalid_items = [
+            item["code"] for item in self.selected_items
+            if not self.item_lookup(item["code"]) or not self.item_lookup(item["code"]).get('name')
+        ]
         if invalid_items:
             self.display_label.setText(f"Items {', '.join(invalid_items)} not available")
-            return  # No timeout
+            return
 
-        # Show total sum of all selected items
-        total_sum = self.total_price / 100.0
-        self.display_label.setText(
-            f"Proceed to payment\nTotal: ${total_sum:.2f}"
-        )
-        self.process_payment()
+        # Show custom popup
+        dlg = ConfirmDialog(self.selected_items, self.total_price, self)
+        if dlg.exec_() == QDialog.Accepted:
+            self.display_label.setText(
+                f"Proceeding to payment\nTotal: ${self.total_price/100:.2f}"
+            )
+            self.process_payment()
+        else:
+            self.display_label.setText("Payment cancelled. Select more items or press Pay.")
 
     def process_payment(self):
         result = self.card_reader.charge(self.total_price)
@@ -217,7 +280,6 @@ class UserPanel(QWidget):
         dispensing_complete()
 
     def on_cancel(self):
-        # Reset panel to initial state and show cancelled message
         self.selected_items = []
         self.total_price = 0
         self.current_input = ""
