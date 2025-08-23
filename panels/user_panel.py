@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt
 import json
 import os
 
@@ -33,7 +33,7 @@ class UserPanel(QWidget):
         self.keypad_layout = QGridLayout()
         self.keypad_layout.setSpacing(10)
 
-        # Remove ↵ button from keypad
+        # Keypad as before, no ↵ button
         buttons = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
@@ -51,25 +51,43 @@ class UserPanel(QWidget):
 
         layout.addLayout(self.keypad_layout)
 
-        # Three buttons below keypad: Confirm, Pay, Admin
-        button_row = QHBoxLayout()
+        # Vertical button group below keypad
+        button_group_layout = QVBoxLayout()
+        button_group_layout.setSpacing(15)
 
-        self.confirm_btn = QPushButton("Confirm")
+        self.confirm_btn = QPushButton("Enter")
         self.confirm_btn.setObjectName("action_button")
+        self.confirm_btn.setFixedHeight(80)
         self.confirm_btn.clicked.connect(self.on_confirm_item)
-        button_row.addWidget(self.confirm_btn)
+        button_group_layout.addWidget(self.confirm_btn)
 
         self.confirm_pay_btn = QPushButton("Pay")
         self.confirm_pay_btn.setObjectName("action_button")
+        self.confirm_pay_btn.setFixedHeight(80)
+        self.confirm_pay_btn.setStyleSheet("background-color: #4CAF50; color: white; border-radius: 10px; font-size: 24px;")
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
-        button_row.addWidget(self.confirm_pay_btn)
+        button_group_layout.addWidget(self.confirm_pay_btn)
+
+        # Admin and Cancel row (swapped positions, Cancel is larger)
+        admin_cancel_row = QHBoxLayout()
+        admin_cancel_row.setSpacing(10)
+
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setFixedHeight(80)
+        self.cancel_btn.setMinimumWidth(180)
+        self.cancel_btn.setStyleSheet("background-color: #B0BEC5; color: #333; border-radius: 10px; font-size: 24px;")
+        self.cancel_btn.clicked.connect(self.on_cancel)
+        admin_cancel_row.addWidget(self.cancel_btn, stretch=2)
 
         self.admin_btn = QPushButton("Admin")
         self.admin_btn.setObjectName("admin_button")
+        self.admin_btn.setFixedHeight(80)
+        self.admin_btn.setFixedWidth(120)
         self.admin_btn.clicked.connect(lambda: self.parent.switch_screen(self.parent.admin_login))
-        button_row.addWidget(self.admin_btn)
+        admin_cancel_row.addWidget(self.admin_btn, stretch=1)
 
-        layout.addLayout(button_row)
+        button_group_layout.addLayout(admin_cancel_row)
+        layout.addLayout(button_group_layout)
 
     def load_items(self):
         try:
@@ -105,8 +123,7 @@ class UserPanel(QWidget):
 
         if not self.current_input:
             self.display_label.setText("Please enter an item code")
-            QTimer.singleShot(2000, lambda: self.display_label.setText("Ready"))
-            return
+            return  # No timeout
 
         item = self.item_lookup(self.current_input)
         if item and item.get('name') and item.get('price', 0) > 0:
@@ -118,15 +135,20 @@ class UserPanel(QWidget):
             })
             self.total_price += item["price"]
             self.update_selection_display()
+            # Immediately clear input after confirmation
             self.current_input = ""
+            selected_display = "\n".join([
+                f"{i['name']} - ${i['price']/100:.2f}"
+                for i in self.selected_items
+            ])
             self.display_label.setText(
-                f"Item added: {item['name']} - ${item['price']/100:.2f}\n"
+                f"Selected Items:\n{selected_display}\n"
                 f"Total: ${self.total_price/100:.2f}\nSelect another item or press Pay."
             )
         else:
             self.display_label.setText(f"Item {self.current_input} not available")
             self.current_input = ""
-            QTimer.singleShot(2000, lambda: self.display_label.setText("Ready"))
+            # No timeout
 
     def update_selection_display(self):
         if not self.selected_items:
@@ -149,8 +171,7 @@ class UserPanel(QWidget):
 
         if not self.selected_items:
             self.display_label.setText("Please select an item first")
-            QTimer.singleShot(2000, lambda: self.display_label.setText("Ready"))
-            return
+            return  # No timeout
 
         # Check if all selected items are valid
         invalid_items = []
@@ -160,11 +181,14 @@ class UserPanel(QWidget):
 
         if invalid_items:
             self.display_label.setText(f"Items {', '.join(invalid_items)} not available")
-            QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
-            return
+            return  # No timeout
 
-        self.display_label.setText(f"Total: ${self.total_price/100:.2f}\nPlease proceed with payment")
-        QTimer.singleShot(1500, self.process_payment)
+        # Show total sum of all selected items
+        total_sum = self.total_price / 100.0
+        self.display_label.setText(
+            f"Proceed to payment\nTotal: ${total_sum:.2f}"
+        )
+        self.process_payment()
 
     def process_payment(self):
         result = self.card_reader.charge(self.total_price)
@@ -173,11 +197,10 @@ class UserPanel(QWidget):
     def handle_payment_result(self, result):
         if result.get("success"):
             self.display_label.setText("Payment successful\nPreparing to dispense items...")
-            QTimer.singleShot(1500, self.start_dispensing)
+            self.start_dispensing()
         else:
             self.display_label.setText("Payment failed\nPlease try again")
-            self.confirm_pay_btn.setEnabled(True) 
-            QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
+            self.confirm_pay_btn.setEnabled(True)
 
     def start_dispensing(self):
         def status_callback(msg):
@@ -189,7 +212,13 @@ class UserPanel(QWidget):
             self.total_price = 0
             self.current_input = ""
             self.update_selection_display()
-            QTimer.singleShot(3000, lambda: self.display_label.setText("Ready"))
 
         self.relay_controller.dispense(self.selected_items, status_callback)
-        QTimer.singleShot(3000, dispensing_complete)
+        dispensing_complete()
+
+    def on_cancel(self):
+        # Reset panel to initial state and show cancelled message
+        self.selected_items = []
+        self.total_price = 0
+        self.current_input = ""
+        self.display_label.setText("Process cancelled. Ready.")
