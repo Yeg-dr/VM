@@ -95,7 +95,7 @@ class UserPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(20)
 
-        self.display_label = QLabel("Ready")
+        self.display_label = QLabel()
         self.display_label.setObjectName("display_label")
         self.display_label.setAlignment(Qt.AlignCenter)
         self.display_label.setWordWrap(True)
@@ -135,7 +135,7 @@ class UserPanel(QWidget):
 
         layout.addLayout(self.keypad_layout)
 
-        # Vertical button group (just Pay and Admin now)
+        # Vertical button group (just Pay now)
         button_group_layout = QVBoxLayout()
         button_group_layout.setSpacing(12)
 
@@ -147,19 +147,31 @@ class UserPanel(QWidget):
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
         button_group_layout.addWidget(self.confirm_pay_btn)
 
-        # Admin row
-        admin_row = QHBoxLayout()
-        admin_row.setSpacing(8)
+        layout.addLayout(button_group_layout)
 
-        self.admin_btn = QPushButton("Admin")
+        # Admin button row at the bottom right
+        admin_row = QHBoxLayout()
+        admin_row.addStretch()
+        self.admin_btn = QPushButton("⚙️")
         self.admin_btn.setObjectName("admin_button")
         self.admin_btn.setFixedHeight(60)
-        self.admin_btn.setFixedWidth(100)
+        self.admin_btn.setFixedWidth(60)
+        self.admin_btn.setStyleSheet(
+            "background-color: #7ED6DF; color: #222; border-radius: 40px; font-size: 28px; margin: 50px;")
         self.admin_btn.clicked.connect(lambda: self.parent.switch_screen(self.parent.admin_login))
-        admin_row.addWidget(self.admin_btn, stretch=1)
+        admin_row.addWidget(self.admin_btn)
+        layout.addLayout(admin_row)
 
-        button_group_layout.addLayout(admin_row)
-        layout.addLayout(button_group_layout)
+        self.setLayout(layout)
+        self.set_initial_display()
+
+    def set_initial_display(self):
+        # Initial state message
+        self.display_label.setText(
+            '<div style="font-size:22px;">'
+            'Enter the item number you want and press the <b>+</b> button'
+            '</div>'
+        )
 
     def load_items(self):
         try:
@@ -185,7 +197,13 @@ class UserPanel(QWidget):
             if self.selected_items:
                 removed_item = self.selected_items.pop()
                 self.total_price -= removed_item['price']
-                self.update_selection_display()
+                if self.selected_items:
+                    self.update_selection_display()
+                else:
+                    self.display_label.setText(
+                        '<div style="font-size:20px;">No items available yet.</div>'
+                    )
+                    self.set_initial_display()
             else:
                 self.display_label.setText("No items to remove")
             return
@@ -193,7 +211,11 @@ class UserPanel(QWidget):
         if text == '+':
             # Add currently entered item to selection, then reset input
             if not self.current_input:
-                self.display_label.setText("Please enter an item code")
+                self.display_label.setText(
+                    '<div style="font-size:22px;">'
+                    'Enter the item number you want and press the <b>+</b> button'
+                    '</div>'
+                )
                 return
             item = self.item_lookup(self.current_input)
             if item and item.get('name') and item.get('price', 0) > 0:
@@ -218,16 +240,25 @@ class UserPanel(QWidget):
 
     def update_selection_display(self):
         if not self.selected_items:
-            self.display_label.setText("Ready")
+            self.display_label.setText(
+                '<div style="font-size:20px;">No items available yet.</div>'
+            )
+            self.set_initial_display()
             return
 
-        selected_display = "\n".join([
-            f"{i['name']} - ${i['price']/100:.2f}"
-            for i in self.selected_items
-        ])
+        selected_display = ""
+        for i in self.selected_items:
+            selected_display += (
+                f"<div style='font-size:22px;'><b>{i['name']}</b> - ${i['price']/100:.2f}</div>"
+            )
+        total_display = f"<div style='font-size:20px;'><b>Total:</b> ${self.total_price/100:.2f}</div>"
+        instructions = (
+            "<div style='font-size:15px; color:#555; margin-top:8px;'>"
+            "To add another item, press <b>+</b>. To remove an item, press <b>-</b>. Or complete the payment."
+            "</div>"
+        )
         self.display_label.setText(
-            f"Selected Items:\n{selected_display}\n\n"
-            f"Total: ${self.total_price/100:.2f}"
+            f"{selected_display}{total_display}{instructions}"
         )
 
     def on_confirm_pay(self):
@@ -236,7 +267,11 @@ class UserPanel(QWidget):
             return
 
         if not self.selected_items:
-            self.display_label.setText("Please select an item first")
+            self.display_label.setText(
+                '<div style="font-size:22px;">'
+                'Enter the item number you want and press the <b>+</b> button'
+                '</div>'
+            )
             return
 
         invalid_items = [
@@ -255,7 +290,7 @@ class UserPanel(QWidget):
             )
             self.process_payment()
         else:
-            self.display_label.setText("Payment cancelled. Select more items or press Pay.")
+            self.update_selection_display()
 
     def process_payment(self):
         result = self.card_reader.charge(self.total_price)
@@ -278,6 +313,7 @@ class UserPanel(QWidget):
             self.selected_items = []
             self.total_price = 0
             self.current_input = ""
-            self.update_selection_display()
+            self.set_initial_display()
 
         self.relay_controller.dispense(self.selected_items, status_callback)
+        dispensing_complete()
