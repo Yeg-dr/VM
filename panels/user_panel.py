@@ -104,33 +104,40 @@ class UserPanel(QWidget):
         self.keypad_layout = QGridLayout()
         self.keypad_layout.setSpacing(8)
 
-        # Keypad buttons
+        # Keypad buttons layout:
+        #
+        # 1 2 3
+        # 4 5 6
+        # 7 8 9
+        # - 0 +
+        #
+        # "C" is replaced by "-", green "+" at far right of "0" row, "Enter" and "Cancel" are removed
+
         buttons = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('C', 3, 0), ('0', 3, 1)
+            ('-', 3, 0), ('0', 3, 1), ('+', 3, 2)
         ]
 
         for text, row, col in buttons:
             button = QPushButton(text)
             button.setFixedHeight(60)  # reduced height
-            if text == 'C':
-                button.setStyleSheet("background-color: #FF5252;")
+
+            if text == '-':
+                # Style for the minus button (removes last selected item)
+                button.setStyleSheet("background-color: #FF5252; color: white; font-size: 24px; border-radius: 10px;")
+            elif text == '+':
+                # Style for the plus button (green)
+                button.setStyleSheet("background-color: #4CAF50; color: white; font-size: 28px; border-radius: 10px;")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             self.keypad_layout.addWidget(button, row, col)
 
         layout.addLayout(self.keypad_layout)
 
-        # Vertical button group
+        # Vertical button group (just Pay and Admin now)
         button_group_layout = QVBoxLayout()
         button_group_layout.setSpacing(12)
-
-        self.confirm_btn = QPushButton("Enter")
-        self.confirm_btn.setObjectName("action_button")
-        self.confirm_btn.setFixedHeight(60)
-        self.confirm_btn.clicked.connect(self.on_confirm_item)
-        button_group_layout.addWidget(self.confirm_btn)
 
         self.confirm_pay_btn = QPushButton("Pay")
         self.confirm_pay_btn.setObjectName("action_button")
@@ -140,26 +147,18 @@ class UserPanel(QWidget):
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
         button_group_layout.addWidget(self.confirm_pay_btn)
 
-        # Admin and Cancel row
-        admin_cancel_row = QHBoxLayout()
-        admin_cancel_row.setSpacing(8)
-
-        self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setFixedHeight(60)
-        self.cancel_btn.setMinimumWidth(160)
-        self.cancel_btn.setStyleSheet(
-            "background-color: #B0BEC5; color: #333; border-radius: 10px; font-size: 22px;")
-        self.cancel_btn.clicked.connect(self.on_cancel)
-        admin_cancel_row.addWidget(self.cancel_btn, stretch=2)
+        # Admin row
+        admin_row = QHBoxLayout()
+        admin_row.setSpacing(8)
 
         self.admin_btn = QPushButton("Admin")
         self.admin_btn.setObjectName("admin_button")
         self.admin_btn.setFixedHeight(60)
         self.admin_btn.setFixedWidth(100)
         self.admin_btn.clicked.connect(lambda: self.parent.switch_screen(self.parent.admin_login))
-        admin_cancel_row.addWidget(self.admin_btn, stretch=1)
+        admin_row.addWidget(self.admin_btn, stretch=1)
 
-        button_group_layout.addLayout(admin_cancel_row)
+        button_group_layout.addLayout(admin_row)
         layout.addLayout(button_group_layout)
 
     def load_items(self):
@@ -181,36 +180,41 @@ class UserPanel(QWidget):
             self.display_label.setText("Cannot operate: Items DB error")
             return
 
-        if text == 'C':
-            self.current_input = ""
-            self.display_label.setText("Ready")
-        else:
+        if text == '-':
+            # Remove the most recently selected item (if any)
+            if self.selected_items:
+                removed_item = self.selected_items.pop()
+                self.total_price -= removed_item['price']
+                self.update_selection_display()
+            else:
+                self.display_label.setText("No items to remove")
+            return
+
+        if text == '+':
+            # Add currently entered item to selection, then reset input
+            if not self.current_input:
+                self.display_label.setText("Please enter an item code")
+                return
+            item = self.item_lookup(self.current_input)
+            if item and item.get('name') and item.get('price', 0) > 0:
+                self.selected_items.append({
+                    "code": self.current_input,
+                    "name": item["name"],
+                    "price": item["price"],
+                    "location": item["location"]
+                })
+                self.total_price += item["price"]
+                self.update_selection_display()
+                self.current_input = ""
+            else:
+                self.display_label.setText(f"Item {self.current_input} not available")
+                self.current_input = ""
+            return
+
+        # Digits
+        if text.isdigit():
             self.current_input += text
             self.display_label.setText(f"Entered: {self.current_input}")
-
-    def on_confirm_item(self):
-        if self.json_error:
-            self.display_label.setText("Cannot operate: Items DB error")
-            return
-
-        if not self.current_input:
-            self.display_label.setText("Please enter an item code")
-            return
-
-        item = self.item_lookup(self.current_input)
-        if item and item.get('name') and item.get('price', 0) > 0:
-            self.selected_items.append({
-                "code": self.current_input,
-                "name": item["name"],
-                "price": item["price"],
-                "location": item["location"]
-            })
-            self.total_price += item["price"]
-            self.update_selection_display()
-            self.current_input = ""
-        else:
-            self.display_label.setText(f"Item {self.current_input} not available")
-            self.current_input = ""
 
     def update_selection_display(self):
         if not self.selected_items:
@@ -277,10 +281,3 @@ class UserPanel(QWidget):
             self.update_selection_display()
 
         self.relay_controller.dispense(self.selected_items, status_callback)
-        dispensing_complete()
-
-    def on_cancel(self):
-        self.selected_items = []
-        self.total_price = 0
-        self.current_input = ""
-        self.display_label.setText("Process cancelled. Ready.")
