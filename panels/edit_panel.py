@@ -30,7 +30,7 @@ class EditPanel(QWidget):
         self.item_code_display = QLabel("")
         self.item_code_display.setAlignment(Qt.AlignCenter)
         self.item_code_display.setStyleSheet("""
-            font-size: 40px;
+            font-size: 50px;
             font-weight: bold;
             color: #4A90E2;
             margin-bottom: 20px;
@@ -42,7 +42,7 @@ class EditPanel(QWidget):
         layout.addWidget(self.name_label)
         
         self.name_edit = QLineEdit()
-        self.name_edit.setReadOnly(True)  # فقط با کیبورد مجازی
+        self.name_edit.setReadOnly(True)  
         self.name_edit.mousePressEvent = lambda event: self.show_keyboard(self.name_edit)
         layout.addWidget(self.name_edit)
         
@@ -51,7 +51,7 @@ class EditPanel(QWidget):
         layout.addWidget(self.price_label)
         
         self.price_edit = QLineEdit()
-        self.price_edit.setReadOnly(True)  # فقط با کیبورد مجازی
+        self.price_edit.setReadOnly(True)  
         self.price_edit.setValidator(QtGui.QIntValidator(0, 999999999))
         self.price_edit.mousePressEvent = lambda event: self.show_keyboard(self.price_edit)
         layout.addWidget(self.price_edit)
@@ -63,7 +63,7 @@ class EditPanel(QWidget):
         self.location_display = QLabel("")
         self.location_display.setAlignment(Qt.AlignCenter)
         self.location_display.setStyleSheet("""
-            font-size: 24px;
+            font-size: 30px;
             font-weight: bold;
             color: #7ED6DF;
             margin-bottom: 15px;
