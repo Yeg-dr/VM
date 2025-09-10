@@ -37,7 +37,7 @@
     },
     "9": {
         "name": "PEN",
-        "price": 40000,
+        "price": 23000,
         "location": "C1"
     },
     "10": {
@@ -151,8 +151,8 @@
         "location": "H3"
     },
     "32": {
-        "name": "",
-        "price": 0,
+        "name": "CANDLE",
+        "price": 40000,
         "location": "H4"
     }
 }

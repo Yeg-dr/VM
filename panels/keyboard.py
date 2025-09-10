@@ -61,8 +61,8 @@ class Keyboard(QWidget):
             ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
             ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
             ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':'],
-            ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '.', '-', '@'],
-            ['Backspace', 'Space']  # Only these two in the second last row
+            ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '.', '-', '↵'],
+            ['Space']  # Only these two in the second last row
         ]
         
         max_keys_per_row = max(len(row) for row in rows)
@@ -79,9 +79,6 @@ class Keyboard(QWidget):
                 btn.setFixedHeight(row_height)
                 
                 if key == 'Space':
-                    btn.setFixedWidth(int(screen_width - 20))  # Full width
-                    btn.setStyleSheet(base_style)
-                elif key == 'Backspace':
                     btn.setFixedWidth(int(screen_width - 20))  # Full width
                     btn.setStyleSheet(base_style)
                 else:
@@ -111,7 +108,7 @@ class Keyboard(QWidget):
         
         if key == 'Space':
             new_text = current_text + " "
-        elif key == 'Backspace':
+        elif key == '↵':
             new_text = current_text[:-1]
         elif key == 'Done':
             if self.target:

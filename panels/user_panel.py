@@ -21,7 +21,7 @@ class ConfirmDialog(QDialog):
                 border-radius: 15px;
             }
             QLabel {
-                font-size: 20px;
+                font-size: 30px;
                 color: #333;
             }
             QPushButton {
@@ -50,11 +50,11 @@ class ConfirmDialog(QDialog):
         scroll_layout = QVBoxLayout(scroll_widget)
 
         for item in items:
-            lbl = QLabel(f"{item['name']} - ${item['price']/100:.2f}")
+            lbl = QLabel(f"{item['name']} - {item['price']} IRR")
             lbl.setAlignment(Qt.AlignLeft)
             scroll_layout.addWidget(lbl)
 
-        total_lbl = QLabel(f"\nTotal: ${total_price/100:.2f}")
+        total_lbl = QLabel(f"\nTotal: IRR{total_price} IRR")
         total_lbl.setAlignment(Qt.AlignLeft)
         scroll_layout.addWidget(total_lbl)
 
@@ -104,52 +104,39 @@ class UserPanel(QWidget):
         self.keypad_layout = QGridLayout()
         self.keypad_layout.setSpacing(8)
 
-        # Keypad buttons layout:
-        #
-        # 1 2 3
-        # 4 5 6
-        # 7 8 9
-        # - 0 +
-        #
-        # "C" is replaced by "-", green "+" at far right of "0" row, "Enter" and "Cancel" are removed
-
         buttons = [
             ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
             ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
             ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('-', 3, 0), ('0', 3, 1), ('+', 3, 2)
+            ('↵', 3, 0), ('0', 3, 1), ('+', 3, 2)
         ]
 
         for text, row, col in buttons:
             button = QPushButton(text)
-            button.setFixedHeight(60)  # reduced height
+            button.setFixedHeight(60)
 
-            if text == '-':
-                # Style for the minus button (removes last selected item)
-                button.setStyleSheet("background-color: #FF5252; color: white; font-size: 24px; border-radius: 10px;")
+            if text == '↵':
+                button.setStyleSheet("background-color: #FF5252; color: white; font-size: 28px; border-radius: 10px;")
             elif text == '+':
-                # Style for the plus button (green)
                 button.setStyleSheet("background-color: #4CAF50; color: white; font-size: 28px; border-radius: 10px;")
             button.clicked.connect(lambda _, t=text: self.on_keypad_clicked(t))
             self.keypad_layout.addWidget(button, row, col)
 
         layout.addLayout(self.keypad_layout)
 
-        # Vertical button group (just Pay now)
         button_group_layout = QVBoxLayout()
         button_group_layout.setSpacing(12)
 
         self.confirm_pay_btn = QPushButton("Pay")
         self.confirm_pay_btn.setObjectName("action_button")
-        self.confirm_pay_btn.setFixedHeight(60)
+        self.confirm_pay_btn.setFixedHeight(90)
         self.confirm_pay_btn.setStyleSheet(
-            "background-color: #4CAF50; color: white; border-radius: 10px; font-size: 22px;")
+            "background-color: #FFA726; color: white; border-radius: 10px; font-size: 22px;")
         self.confirm_pay_btn.clicked.connect(self.on_confirm_pay)
         button_group_layout.addWidget(self.confirm_pay_btn)
 
         layout.addLayout(button_group_layout)
 
-        # Admin button row at the bottom right
         admin_row = QHBoxLayout()
         admin_row.addStretch()
         self.admin_btn = QPushButton("⚙️")
@@ -166,12 +153,12 @@ class UserPanel(QWidget):
         self.set_initial_display()
 
     def set_initial_display(self):
-        # Initial state message
         self.display_label.setText(
-            '<div style="font-size:22px;">'
+            '<div style="font-size:32px;">'
             'Enter the item number you want and press the <b>+</b> button'
             '</div>'
         )
+        self.confirm_pay_btn.setText("Pay")
 
     def load_items(self):
         try:
@@ -192,8 +179,7 @@ class UserPanel(QWidget):
             self.display_label.setText("Cannot operate: Items DB error")
             return
 
-        if text == '-':
-            # Remove the most recently selected item (if any)
+        if text == '↵':
             if self.selected_items:
                 removed_item = self.selected_items.pop()
                 self.total_price -= removed_item['price']
@@ -209,10 +195,9 @@ class UserPanel(QWidget):
             return
 
         if text == '+':
-            # Add currently entered item to selection, then reset input
             if not self.current_input:
                 self.display_label.setText(
-                    '<div style="font-size:22px;">'
+                    '<div style="font-size:32px;">'
                     'Enter the item number you want and press the <b>+</b> button'
                     '</div>'
                 )
@@ -233,7 +218,6 @@ class UserPanel(QWidget):
                 self.current_input = ""
             return
 
-        # Digits
         if text.isdigit():
             self.current_input += text
             self.display_label.setText(f"Entered: {self.current_input}")
@@ -249,17 +233,18 @@ class UserPanel(QWidget):
         selected_display = ""
         for i in self.selected_items:
             selected_display += (
-                f"<div style='font-size:22px;'><b>{i['name']}</b> - ${i['price']/100:.2f}</div>"
+                f"<div style='font-size:24px;'><b>{i['name']}</b> - {i['price']} IRR</div>"
             )
-        total_display = f"<div style='font-size:20px;'><b>Total:</b> ${self.total_price/100:.2f}</div>"
+
         instructions = (
-            "<div style='font-size:15px; color:#555; margin-top:8px;'>"
-            "To add another item, press <b>+</b>. To remove an item, press <b>-</b>. Or complete the payment."
+            "<div style='font-size:20px; color:#555; margin-top:8px;'>"
+            "To add another item, press <b>+</b>. To remove an item, press <b>↵</b>. Or complete the payment."
             "</div>"
         )
-        self.display_label.setText(
-            f"{selected_display}{total_display}{instructions}"
-        )
+        self.display_label.setText(f"{selected_display}{instructions}")
+
+        # Total فقط روی دکمه Pay نمایش داده می‌شود
+        self.confirm_pay_btn.setText(f"Pay\n(Total: {self.total_price} IRR)")
 
     def on_confirm_pay(self):
         if self.json_error:
@@ -268,7 +253,7 @@ class UserPanel(QWidget):
 
         if not self.selected_items:
             self.display_label.setText(
-                '<div style="font-size:22px;">'
+                '<div style="font-size:24px;">'
                 'Enter the item number you want and press the <b>+</b> button'
                 '</div>'
             )
@@ -282,11 +267,10 @@ class UserPanel(QWidget):
             self.display_label.setText(f"Items {', '.join(invalid_items)} not available")
             return
 
-        # Show custom popup
         dlg = ConfirmDialog(self.selected_items, self.total_price, self)
         if dlg.exec_() == QDialog.Accepted:
             self.display_label.setText(
-                f"Proceeding to payment\nTotal: ${self.total_price/100:.2f}"
+                f"Proceeding to payment\nTotal: {self.total_price} IRR"
             )
             self.process_payment()
         else:
@@ -314,6 +298,7 @@ class UserPanel(QWidget):
             self.total_price = 0
             self.current_input = ""
             self.set_initial_display()
+            self.confirm_pay_btn.setText("Pay")
 
         self.relay_controller.dispense(self.selected_items, status_callback)
         dispensing_complete()
