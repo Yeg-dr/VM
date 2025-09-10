@@ -19,7 +19,7 @@ class ChangePasswordPanel(QWidget):
         # Message label
         self.message_label = QLabel("Enter current admin password")
         self.message_label.setAlignment(Qt.AlignCenter)
-        self.message_label.setStyleSheet("font-size: 20px; color: #666;")
+        self.message_label.setStyleSheet("font-size: 25px; color: #666;")
         self.layout.addWidget(self.message_label)
 
         # Display label
