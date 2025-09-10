@@ -194,19 +194,23 @@ class UserPanel(QWidget):
             return
 
         if text == '↵':
-            if self.selected_items:
+            if self.current_input:  # اگه کاربر در حال تایپ شماره آیتمه
+                self.current_input = ""
+                if self.selected_items:
+                    self.update_selection_display()
+                else:
+                    self.set_initial_display()
+            elif self.selected_items:  # اگه ورودی خالیه ولی آیتم انتخاب‌شده داریم
                 removed_item = self.selected_items.pop()
                 self.total_price -= removed_item['price']
                 if self.selected_items:
                     self.update_selection_display()
                 else:
-                    self.display_label.setText(
-                        '<div style="font-size:20px;">No items available yet.</div>'
-                    )
                     self.set_initial_display()
-            else:
-                self.display_label.setText("No items to remove")
+            else:  # نه ورودی هست نه آیتم
+                self.set_initial_display()
             return
+
 
         if text == '+':
             if not self.current_input:
