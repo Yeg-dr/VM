@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel,
     QHBoxLayout, QDialog, QDialogButtonBox, QScrollArea
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 import json
 import os
 
@@ -43,7 +43,6 @@ class ConfirmDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
 
-        # Scrollable area in case many items
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_widget = QWidget()
@@ -61,7 +60,6 @@ class ConfirmDialog(QDialog):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
-        # Buttons
         btn_box = QHBoxLayout()
         self.confirm_btn = QPushButton("Confirm")
         self.confirm_btn.setObjectName("confirm")
@@ -89,6 +87,12 @@ class UserPanel(QWidget):
         self.setup_ui()
         self.load_items()
         self.relay_controller = RelayController(self.item_lookup)
+
+        # Inactivity timer (30 seconds)
+        self.inactivity_timer = QTimer(self)
+        self.inactivity_timer.setInterval(30_000)
+        self.inactivity_timer.timeout.connect(self.reset_to_initial)
+        self.inactivity_timer.start()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -155,10 +159,18 @@ class UserPanel(QWidget):
     def set_initial_display(self):
         self.display_label.setText(
             '<div style="font-size:32px;">'
-            'Enter the item number you want and press the <b>+</b> button'
+            'READY<br>'
+            '<span style="font-size:24px;">Enter the desired item number.</span>'
             '</div>'
-        )
+            )
+
         self.confirm_pay_btn.setText("Pay")
+
+    def reset_to_initial(self):
+        self.selected_items = []
+        self.total_price = 0
+        self.current_input = ""
+        self.set_initial_display()
 
     def load_items(self):
         try:
@@ -175,6 +187,8 @@ class UserPanel(QWidget):
         return self.items.get(str(code), None)
 
     def on_keypad_clicked(self, text):
+        self.inactivity_timer.start()
+
         if self.json_error:
             self.display_label.setText("Cannot operate: Items DB error")
             return
@@ -198,9 +212,11 @@ class UserPanel(QWidget):
             if not self.current_input:
                 self.display_label.setText(
                     '<div style="font-size:32px;">'
-                    'Enter the item number you want and press the <b>+</b> button'
+                    'READY<br>'
+                    '<span style="font-size:24px;">Enter the desired item number.</span>'
                     '</div>'
                 )
+
                 return
             item = self.item_lookup(self.current_input)
             if item and item.get('name') and item.get('price', 0) > 0:
@@ -220,7 +236,7 @@ class UserPanel(QWidget):
 
         if text.isdigit():
             self.current_input += text
-            self.display_label.setText(f"Entered: {self.current_input}")
+            self.display_label.setText(f"Press the + button to select the item {self.current_input}.")
 
     def update_selection_display(self):
         if not self.selected_items:
@@ -238,15 +254,16 @@ class UserPanel(QWidget):
 
         instructions = (
             "<div style='font-size:20px; color:#555; margin-top:8px;'>"
-            "To add another item, press <b>+</b>. To remove an item, press <b>↵</b>. Or complete the payment."
+            "To add another item, press <b>+</b>.<br>To remove an item, press <b>↵</b>.<br>Or complete the payment."
             "</div>"
         )
         self.display_label.setText(f"{selected_display}{instructions}")
 
-        # Total فقط روی دکمه Pay نمایش داده می‌شود
-        self.confirm_pay_btn.setText(f"Pay\n(Total: {self.total_price} IRR)")
+        self.confirm_pay_btn.setText(f"Pay (Total: {self.total_price} IRR)")
 
     def on_confirm_pay(self):
+        self.inactivity_timer.start()
+
         if self.json_error:
             self.display_label.setText("Cannot operate: Items DB error")
             return
@@ -274,7 +291,10 @@ class UserPanel(QWidget):
             )
             self.process_payment()
         else:
-            self.update_selection_display()
+            self.selected_items = []
+            self.total_price = 0
+            self.current_input = ""
+            self.set_initial_display()
 
     def process_payment(self):
         result = self.card_reader.charge(self.total_price)
