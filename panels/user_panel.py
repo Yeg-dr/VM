@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel,
     QHBoxLayout, QDialog, QDialogButtonBox, QScrollArea
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
 import json
 import os
 
@@ -53,7 +53,7 @@ class ConfirmDialog(QDialog):
             lbl.setAlignment(Qt.AlignLeft)
             scroll_layout.addWidget(lbl)
 
-        total_lbl = QLabel(f"\nTotal: IRR{total_price} IRR")
+        total_lbl = QLabel(f"\nTotal: {total_price} IRR")
         total_lbl.setAlignment(Qt.AlignLeft)
         scroll_layout.addWidget(total_lbl)
 
@@ -72,6 +72,52 @@ class ConfirmDialog(QDialog):
         btn_box.addWidget(self.cancel_btn)
         btn_box.addWidget(self.confirm_btn)
         layout.addLayout(btn_box)
+
+
+# Worker for processing payment in a separate thread
+class PaymentWorker(QObject):
+    status = pyqtSignal(str)       # status messages to display
+    finished = pyqtSignal(dict)    # emits the result dict from card_reader.charge
+
+    def __init__(self, card_reader, amount):
+        super().__init__()
+        self.card_reader = card_reader
+        self.amount = amount
+
+    def run(self):
+        # Notify UI that payment is being processed
+        self.status.emit("Processing payment...")
+        # Call synchronous charge() (kept as-is from your module)
+        result = self.card_reader.charge(self.amount)
+        # Emit final result
+        if isinstance(result, dict):
+            self.finished.emit(result)
+        else:
+            # safety: if module returns unexpected, wrap as failure
+            self.finished.emit({"success": False, "message": str(result)})
+
+
+# Worker for dispensing (relay) in a separate thread
+class DispenseWorker(QObject):
+    status = pyqtSignal(str)    # messages from relay_controller.dispense
+    finished = pyqtSignal()     # emitted when dispensing complete
+
+    def __init__(self, relay_controller, selected_items):
+        super().__init__()
+        self.relay_controller = relay_controller
+        # copy list to avoid race conditions if original mutated
+        self.selected_items = [dict(i) for i in selected_items]
+
+    def run(self):
+        # relay_controller.dispense expects a status_callback; we pass one that emits our signal
+        def status_callback(msg):
+            # emit status message to main thread
+            self.status.emit(msg)
+
+        # This call will run in this worker's thread; relay_controller will call status_callback
+        self.relay_controller.dispense(self.selected_items, status_callback)
+        # once dispense returns, notify finished
+        self.finished.emit()
 
 
 class UserPanel(QWidget):
@@ -93,6 +139,12 @@ class UserPanel(QWidget):
         self.inactivity_timer.setInterval(30_000)
         self.inactivity_timer.timeout.connect(self.reset_to_initial)
         self.inactivity_timer.start()
+
+        # Keep references to threads/workers so they are not GC'd while running
+        self._payment_thread = None
+        self._payment_worker = None
+        self._dispense_thread = None
+        self._dispense_worker = None
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -211,7 +263,6 @@ class UserPanel(QWidget):
                 self.set_initial_display()
             return
 
-
         if text == '+':
             if not self.current_input:
                 self.display_label.setText(
@@ -301,28 +352,98 @@ class UserPanel(QWidget):
             self.set_initial_display()
 
     def process_payment(self):
-        result = self.card_reader.charge(self.total_price)
+        """
+        Start payment in a worker thread, update UI via signals.
+        """
+        # disable the pay button to avoid double clicks
+        self.confirm_pay_btn.setEnabled(False)
+
+        # create worker and thread
+        self._payment_worker = PaymentWorker(self.card_reader, self.total_price)
+        self._payment_thread = QThread()
+        self._payment_worker.moveToThread(self._payment_thread)
+
+        # connect signals
+        self._payment_thread.started.connect(self._payment_worker.run)
+        self._payment_worker.status.connect(lambda msg: self.display_label.setText(msg))
+        self._payment_worker.finished.connect(self._on_payment_finished)
+
+        # cleanup when done
+        def _cleanup_payment():
+            if self._payment_thread:
+                self._payment_thread.quit()
+                self._payment_thread.wait()
+            self._payment_worker = None
+            self._payment_thread = None
+
+        self._payment_worker.finished.connect(_cleanup_payment)
+
+        # start thread
+        self._payment_thread.start()
+
+    def _on_payment_finished(self, result):
+        """
+        Handle the result emitted by PaymentWorker (runs in main thread).
+        """
+        # show the message from result if exists
+        msg = result.get("message", "")
+        if msg:
+            self.display_label.setText(msg)
+
         self.handle_payment_result(result)
 
     def handle_payment_result(self, result):
         if result.get("success"):
+            # proceed to dispensing phase — show preparing message then start dispensing
             self.display_label.setText("Payment successful\nPreparing to dispense items...")
             self.start_dispensing()
         else:
+            # payment failed — enable button and notify user
             self.display_label.setText("Payment failed\nPlease try again")
             self.confirm_pay_btn.setEnabled(True)
 
     def start_dispensing(self):
-        def status_callback(msg):
-            self.display_label.setText(msg)
+        """
+        Start dispensing in a worker thread; relay_controller.dispense will call
+        the status_callback which we route through the worker.status signal.
+        """
+        # disable button during dispensing
+        self.confirm_pay_btn.setEnabled(False)
 
-        def dispensing_complete():
-            self.display_label.setText("All items were successfully dispensed")
-            self.selected_items = []
-            self.total_price = 0
-            self.current_input = ""
-            self.set_initial_display()
-            self.confirm_pay_btn.setText("Pay")
+        # create worker and thread for dispensing
+        self._dispense_worker = DispenseWorker(self.relay_controller, self.selected_items)
+        self._dispense_thread = QThread()
+        self._dispense_worker.moveToThread(self._dispense_thread)
 
-        self.relay_controller.dispense(self.selected_items, status_callback)
-        dispensing_complete()
+        # connect lifecycle
+        self._dispense_thread.started.connect(self._dispense_worker.run)
+        # route status messages to UI
+        self._dispense_worker.status.connect(lambda msg: self.display_label.setText(msg))
+        # when finished, call dispensing_complete in main thread
+        self._dispense_worker.finished.connect(self._on_dispense_finished)
+
+        # cleanup function
+        def _cleanup_dispense():
+            if self._dispense_thread:
+                self._dispense_thread.quit()
+                self._dispense_thread.wait()
+            self._dispense_worker = None
+            self._dispense_thread = None
+
+        self._dispense_worker.finished.connect(_cleanup_dispense)
+
+        # start thread
+        self._dispense_thread.start()
+
+    def _on_dispense_finished(self):
+        """
+        Called when DispenseWorker finishes (in main thread).
+        Reset UI and show final message.
+        """
+        self.display_label.setText("All items were successfully dispensed")
+        self.selected_items = []
+        self.total_price = 0
+        self.current_input = ""
+        self.set_initial_display()
+        self.confirm_pay_btn.setText("Pay")
+        self.confirm_pay_btn.setEnabled(True)

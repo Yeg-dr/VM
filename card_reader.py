@@ -1,27 +1,32 @@
-# card_reader.py
+import random
+import time
 
 class CardReader:
-    """
-    Simulates a card reader module.
-
-    Usage:
-        result = CardReader().charge(total_price)
-        if result["success"]:
-            # Payment successful
-    """
+    def __init__(self):
+        pass
 
     def charge(self, amount):
         """
-        Simulate charging the provided amount to the card reader.
-
-        Args:
-            amount (float): The total price to charge.
-
-        Returns:
-            dict: {'success': True, 'message': 'Payment successful'}
+        شبیه‌سازی پرداخت تستی:
+        - کمی تأخیر ایجاد می‌کند (2 ثانیه)
+        - به صورت تصادفی موفق یا ناموفق برمی‌گرداند
         """
-        # For now, always succeed (mock logic)
-        return {
-            "success": True,
-            "message": "Payment successful"
-        }
+        time.sleep(2)  # شبیه‌سازی زمان واقعی پرداخت
+        
+        # انتخاب تصادفی موفق یا ناموفق بودن پرداخت
+        success = random.choice([True, False])
+        
+        if success:
+            return {
+                "success": True, 
+                "message": "Payment successful", 
+                "amount": amount,
+                "transaction_id": f"TXN{random.randint(10000, 99999)}"
+            }
+        else:
+            return {
+                "success": False, 
+                "message": "Payment failed: Insufficient funds", 
+                "amount": amount,
+                "error_code": "INSUFFICIENT_FUNDS"
+            }
