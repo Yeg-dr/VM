@@ -3,17 +3,34 @@ import time
 
 class CardReader:
     def __init__(self):
+        """
+        Simulated card reader for handling test payments.
+        """
         pass
 
     def charge(self, amount):
         """
-        شبیه‌سازی پرداخت تستی:
-        - کمی تأخیر ایجاد می‌کند (2 ثانیه)
-        - به صورت تصادفی موفق یا ناموفق برمی‌گرداند
+        Simulate a payment transaction.
+
+        Args:
+            amount (float): The amount to be charged.
+
+        Returns:
+            dict: A dictionary containing transaction details:
+                - success (bool): Whether the payment was successful.
+                - message (str): Status message.
+                - amount (float): The charged amount.
+                - transaction_id (str, optional): Unique ID for successful transactions.
+                - error_code (str, optional): Error code for failed transactions.
+
+        Notes:
+            - Simulates a delay of 2 seconds to mimic real-world processing.
+            - Randomly determines success or failure of the transaction.
         """
-        time.sleep(2)  # شبیه‌سازی زمان واقعی پرداخت
+        # Simulate real-world payment delay
+        time.sleep(2)
         
-        # انتخاب تصادفی موفق یا ناموفق بودن پرداخت
+        # Randomly determine if payment succeeds or fails
         success = random.choice([True, False])
         
         if success:

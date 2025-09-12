@@ -12,6 +12,10 @@ from panels.items_list_panel import ItemsListPanel
 
 class VendingMachineApp(QMainWindow):
     def __init__(self):
+        """
+        Main application class for the vending machine interface.
+        Handles initialization of items, panels, and global application state.
+        """
         super().__init__()
         self.items_file = "vending_items.json"
         self.load_items()
@@ -19,7 +23,7 @@ class VendingMachineApp(QMainWindow):
         self.selected_items = []
         self.total_price = 0
 
-        # Panels are instantiated after loading items_file
+        # Initialize all panels after loading item data
         self.user_panel = UserPanel(self)
         self.admin_login = AdminLogin(self)
         self.admin_panel = AdminPanel(self)
@@ -31,23 +35,26 @@ class VendingMachineApp(QMainWindow):
         self.setup_ui()
         
     def setup_ui(self):
-        # Main window configuration
+        """
+        Configure the main window and set up the stacked widget layout
+        containing all panels.
+        """
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.showFullScreen()
         self.setFixedSize(480, 770)
         
-        # Central widget and main layout
+        # Configure central widget and main layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(20, 20, 20, 20)
         self.main_layout.setSpacing(20)
         
-        # Stacked widget for different screens
+        # Create stacked widget for panel navigation
         self.stacked_widget = QStackedWidget()
         self.main_layout.addWidget(self.stacked_widget)
         
-        # Add panels to stacked widget
+        # Add all panels to the stacked widget
         self.stacked_widget.addWidget(self.user_panel)
         self.stacked_widget.addWidget(self.admin_login)
         self.stacked_widget.addWidget(self.admin_panel)
@@ -56,13 +63,16 @@ class VendingMachineApp(QMainWindow):
         self.stacked_widget.addWidget(self.change_password_panel)
         self.stacked_widget.addWidget(self.items_list_panel)
         
-        # Set initial screen
+        # Set initial screen to user panel
         self.stacked_widget.setCurrentWidget(self.user_panel)
         
-        # Apply styles
+        # Apply global stylesheet
         self.apply_styles()
     
     def apply_styles(self):
+        """
+        Apply application-wide stylesheet for consistent UI appearance.
+        """
         self.setStyleSheet("""
             QWidget {
                 background-color: #F5F7FA;
@@ -112,12 +122,17 @@ class VendingMachineApp(QMainWindow):
         """)
     
     def load_items(self):
+        """
+        Load vending machine items from a JSON file. If the file does not exist,
+        create a default set of items including the admin password.
+        """
         self.items_file = "vending_items.json"
         try:
             if os.path.exists(self.items_file):
                 with open(self.items_file, 'r') as f:
                     self.items = json.load(f)
             else:
+                # Initialize default items if file is missing
                 self.items = {"admin_password": "1234"}
                 rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
                 for i in range(1, 33):
@@ -134,6 +149,9 @@ class VendingMachineApp(QMainWindow):
             self.items = {}
     
     def save_items(self):
+        """
+        Save vending machine items to the JSON file.
+        """
         try:
             with open(self.items_file, 'w') as f:
                 json.dump(self.items, f, indent=4)
@@ -141,4 +159,7 @@ class VendingMachineApp(QMainWindow):
             print(f"Failed to save items: {str(e)}")
     
     def switch_screen(self, screen):
+        """
+        Switch the current displayed panel to the provided screen.
+        """
         self.stacked_widget.setCurrentWidget(screen)

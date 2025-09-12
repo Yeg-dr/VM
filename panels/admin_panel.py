@@ -1,21 +1,38 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
-                            QGridLayout, QPushButton, QLabel, QMessageBox)
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QPushButton, QLabel, QMessageBox
+)
 from PyQt5.QtCore import Qt
 
+
 class AdminPanel(QWidget):
+    """
+    Admin control panel for managing vending machine items.
+    Provides keypad input for selecting items (1–32),
+    as well as actions to edit items, change password, show items,
+    return to the user panel, or exit the application.
+    """
+
     def __init__(self, parent):
+        """
+        Initialize the AdminPanel.
+
+        Args:
+            parent: The parent widget or application controller.
+        """
         super().__init__()
         self.parent = parent
         self.setup_ui()
-        self.parent.current_input = ""
+        self.parent.current_input = ""  # Store item code input
         self.admin_item_display.setText("")
-    
+
     def setup_ui(self):
+        """Build and configure the UI layout and components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        
-        # Title
+
+        # Title label
         title = QLabel("Admin Panel")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
@@ -24,20 +41,20 @@ class AdminPanel(QWidget):
             font-family: Arial;
         """)
         layout.addWidget(title)
-        
+
         # Instruction label
         instruction = QLabel("Enter the desired item number (1-32)")
         instruction.setAlignment(Qt.AlignCenter)
         instruction.setStyleSheet("font-size: 20px; color: #666666;")
         layout.addWidget(instruction)
-        
-        # Item input display
+
+        # Display for current input
         self.admin_item_display = QLabel("")
         self.admin_item_display.setObjectName("display_label")
         self.admin_item_display.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.admin_item_display)
-        
-        # Move keypad higher in the layout
+
+        # Numeric keypad
         keypad_layout = QGridLayout()
         keypad_layout.setSpacing(10)
         buttons = [
@@ -57,7 +74,7 @@ class AdminPanel(QWidget):
             keypad_layout.addWidget(button, row, col)
         layout.addLayout(keypad_layout)
 
-        # --- NEW ROW FOR CHANGE PASSWORD AND SHOW ITEMS ---
+        # Row for "Change Password" and "Show Items"
         top_btn_row = QHBoxLayout()
         self.change_password_btn = QPushButton("Change Password")
         self.change_password_btn.setObjectName("admin_button")
@@ -70,18 +87,19 @@ class AdminPanel(QWidget):
         self.show_items_btn.setFixedHeight(60)
         self.show_items_btn.clicked.connect(self.on_show_items_clicked)
         top_btn_row.addWidget(self.show_items_btn)
-        layout.addLayout(top_btn_row)
-        # --- END NEW ROW ---
 
-        # --- ROW FOR USER PANEL AND EXIT BUTTONS ---
+        layout.addLayout(top_btn_row)
+
+        # Row for "User Panel" and "Exit"
         bottom_btn_row = QHBoxLayout()
         self.back_to_user_btn = QPushButton("User Panel")
         self.back_to_user_btn.setObjectName("admin_button")
         self.back_to_user_btn.setFixedHeight(60)
         self.back_to_user_btn.clicked.connect(
-            lambda: self.parent.switch_screen(self.parent.user_panel))
+            lambda: self.parent.switch_screen(self.parent.user_panel)
+        )
         bottom_btn_row.addWidget(self.back_to_user_btn)
-        
+
         self.exit_app_btn = QPushButton("Exit")
         self.exit_app_btn.setStyleSheet("background-color: #FF5252;")
         self.exit_app_btn.setFixedHeight(60)
@@ -89,10 +107,16 @@ class AdminPanel(QWidget):
         bottom_btn_row.addWidget(self.exit_app_btn)
 
         layout.addLayout(bottom_btn_row)
-        # --- END ROW ---
 
     def on_keypad_clicked(self, text):
+        """
+        Handle keypad button clicks.
+
+        Args:
+            text (str): Key label ("0"–"9", "C", or "Enter").
+        """
         if text == 'C':
+            # Clear input
             self.parent.current_input = ""
             self.admin_item_display.setText("")
         elif text == 'Enter':
@@ -101,7 +125,9 @@ class AdminPanel(QWidget):
             try:
                 item_code = int(self.parent.current_input)
                 if item_code < 1 or item_code > 32:
-                    QMessageBox.warning(self, "Invalid Input", "Please enter a number between 1 and 32.")
+                    QMessageBox.warning(
+                        self, "Invalid Input", "Please enter a number between 1 and 32."
+                    )
                     self.parent.current_input = ""
                     self.admin_item_display.setText("")
                     return
@@ -110,6 +136,8 @@ class AdminPanel(QWidget):
                 self.parent.current_input = ""
                 self.admin_item_display.setText("")
                 return
+
+            # Load the selected item into the edit panel
             item_code_str = self.parent.current_input
             self.parent.current_edit_item = item_code_str
             self.parent.edit_panel.item_code_display.setText(item_code_str)
@@ -117,14 +145,17 @@ class AdminPanel(QWidget):
             self.parent.switch_screen(self.parent.edit_panel)
             self.parent.current_input = ""
         else:
+            # Append digit input (max 2 digits)
             if len(self.parent.current_input) >= 2:
                 return
             self.parent.current_input += text
             self.admin_item_display.setText(self.parent.current_input)
 
     def on_change_password_clicked(self):
+        """Switch to the Change Password panel."""
         self.parent.switch_screen(self.parent.change_password_panel)
 
     def on_show_items_clicked(self):
+        """Load and display the list of items in the Items List panel."""
         self.parent.items_list_panel.load_items()
         self.parent.switch_screen(self.parent.items_list_panel)
