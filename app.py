@@ -34,7 +34,7 @@ class VendingMachineApp(QMainWindow):
         # Main window configuration
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.showFullScreen()
-        self.setFixedSize(480, 800)
+        self.setFixedSize(480, 770)
         
         # Central widget and main layout
         self.central_widget = QWidget()

@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel,
-    QHBoxLayout, QDialog, QDialogButtonBox, QScrollArea
+    QHBoxLayout, QDialog, QScrollArea
 )
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
 import json
@@ -11,10 +11,16 @@ from mock_relay_controller import RelayController
 
 
 class ConfirmDialog(QDialog):
+    """
+    A modal dialog that displays the selected items and the total price.
+    Provides 'Confirm' and 'Cancel' buttons to proceed or abort payment.
+    """
     def __init__(self, items, total_price, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Confirm Payment")
         self.setModal(True)
+
+        # Apply styling for dialog appearance
         self.setStyleSheet("""
             QDialog {
                 background-color: #F9F9F9;
@@ -43,16 +49,19 @@ class ConfirmDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
 
+        # Scroll area to show list of selected items
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll_widget = QWidget()
         scroll_layout = QVBoxLayout(scroll_widget)
 
+        # Add item labels to the scroll view
         for item in items:
             lbl = QLabel(f"{item['name']} - {item['price']} IRR")
             lbl.setAlignment(Qt.AlignLeft)
             scroll_layout.addWidget(lbl)
 
+        # Display total price
         total_lbl = QLabel(f"\nTotal: {total_price} IRR")
         total_lbl.setAlignment(Qt.AlignLeft)
         scroll_layout.addWidget(total_lbl)
@@ -60,6 +69,7 @@ class ConfirmDialog(QDialog):
         scroll.setWidget(scroll_widget)
         layout.addWidget(scroll)
 
+        # Confirm and cancel buttons
         btn_box = QHBoxLayout()
         self.confirm_btn = QPushButton("Confirm")
         self.confirm_btn.setObjectName("confirm")
@@ -74,10 +84,13 @@ class ConfirmDialog(QDialog):
         layout.addLayout(btn_box)
 
 
-# Worker for processing payment in a separate thread
 class PaymentWorker(QObject):
-    status = pyqtSignal(str)       # status messages to display
-    finished = pyqtSignal(dict)    # emits the result dict from card_reader.charge
+    """
+    Worker class that runs card payment logic in a separate thread.
+    Emits status messages during the process and a final result dict.
+    """
+    status = pyqtSignal(str)       # Signal for status messages
+    finished = pyqtSignal(dict)    # Signal for the result of card_reader.charge
 
     def __init__(self, card_reader, amount):
         super().__init__()
@@ -85,42 +98,45 @@ class PaymentWorker(QObject):
         self.amount = amount
 
     def run(self):
-        # Notify UI that payment is being processed
+        """Execute the payment process."""
         self.status.emit("Processing payment...")
-        # Call synchronous charge() (kept as-is from your module)
         result = self.card_reader.charge(self.amount)
-        # Emit final result
         if isinstance(result, dict):
             self.finished.emit(result)
         else:
-            # safety: if module returns unexpected, wrap as failure
+            # Wrap unexpected results into a failure dict
             self.finished.emit({"success": False, "message": str(result)})
 
 
-# Worker for dispensing (relay) in a separate thread
 class DispenseWorker(QObject):
-    status = pyqtSignal(str)    # messages from relay_controller.dispense
-    finished = pyqtSignal()     # emitted when dispensing complete
+    """
+    Worker class for controlling the relay (dispensing mechanism).
+    Runs in a separate thread to avoid blocking the UI.
+    """
+    status = pyqtSignal(str)    # Signal for relay status messages
+    finished = pyqtSignal()     # Signal emitted when dispensing completes
 
     def __init__(self, relay_controller, selected_items):
         super().__init__()
         self.relay_controller = relay_controller
-        # copy list to avoid race conditions if original mutated
+        # Make a copy to avoid race conditions with mutable data
         self.selected_items = [dict(i) for i in selected_items]
 
     def run(self):
-        # relay_controller.dispense expects a status_callback; we pass one that emits our signal
+        """Execute the dispensing process via relay controller."""
+
         def status_callback(msg):
-            # emit status message to main thread
             self.status.emit(msg)
 
-        # This call will run in this worker's thread; relay_controller will call status_callback
         self.relay_controller.dispense(self.selected_items, status_callback)
-        # once dispense returns, notify finished
         self.finished.emit()
 
 
 class UserPanel(QWidget):
+    """
+    Main user interface panel for the vending machine.
+    Handles keypad input, item selection, payment, and dispensing.
+    """
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -130,33 +146,37 @@ class UserPanel(QWidget):
         self.total_price = 0
         self.current_input = ""
         self.json_error = False
+
         self.setup_ui()
         self.load_items()
         self.relay_controller = RelayController(self.item_lookup)
 
-        # Inactivity timer (30 seconds)
+        # Auto-reset after 30 seconds of inactivity
         self.inactivity_timer = QTimer(self)
         self.inactivity_timer.setInterval(30_000)
         self.inactivity_timer.timeout.connect(self.reset_to_initial)
         self.inactivity_timer.start()
 
-        # Keep references to threads/workers so they are not GC'd while running
+        # Thread/worker references (kept alive during execution)
         self._payment_thread = None
         self._payment_worker = None
         self._dispense_thread = None
         self._dispense_worker = None
 
     def setup_ui(self):
+        """Build and configure the UI layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(20)
 
+        # Display label at the top (shows messages and instructions)
         self.display_label = QLabel()
         self.display_label.setObjectName("display_label")
         self.display_label.setAlignment(Qt.AlignCenter)
         self.display_label.setWordWrap(True)
         layout.addWidget(self.display_label)
 
+        # Numeric keypad for item entry
         self.keypad_layout = QGridLayout()
         self.keypad_layout.setSpacing(8)
 
@@ -167,10 +187,10 @@ class UserPanel(QWidget):
             ('↵', 3, 0), ('0', 3, 1), ('+', 3, 2)
         ]
 
+        # Create keypad buttons and bind events
         for text, row, col in buttons:
             button = QPushButton(text)
             button.setFixedHeight(60)
-
             if text == '↵':
                 button.setStyleSheet("background-color: #FF5252; color: white; font-size: 28px; border-radius: 10px;")
             elif text == '+':
@@ -180,6 +200,7 @@ class UserPanel(QWidget):
 
         layout.addLayout(self.keypad_layout)
 
+        # Pay button
         button_group_layout = QVBoxLayout()
         button_group_layout.setSpacing(12)
 
@@ -193,6 +214,7 @@ class UserPanel(QWidget):
 
         layout.addLayout(button_group_layout)
 
+        # Admin button row
         admin_row = QHBoxLayout()
         admin_row.addStretch()
         self.admin_btn = QPushButton("⚙️")
@@ -209,22 +231,24 @@ class UserPanel(QWidget):
         self.set_initial_display()
 
     def set_initial_display(self):
+        """Reset display to the initial 'READY' state."""
         self.display_label.setText(
             '<div style="font-size:32px;">'
             'READY<br>'
             '<span style="font-size:24px;">Enter the desired item number.</span>'
             '</div>'
-            )
-
+        )
         self.confirm_pay_btn.setText("Pay")
 
     def reset_to_initial(self):
+        """Reset the state and display due to inactivity or user action."""
         self.selected_items = []
         self.total_price = 0
         self.current_input = ""
         self.set_initial_display()
 
     def load_items(self):
+        """Load item database (JSON) from the file defined in parent."""
         try:
             with open(self.parent.items_file, 'r', encoding='utf-8') as f:
                 self.items = json.load(f)
@@ -236,9 +260,14 @@ class UserPanel(QWidget):
             self.setDisabled(True)
 
     def item_lookup(self, code):
+        """Return item information by item code."""
         return self.items.get(str(code), None)
 
     def on_keypad_clicked(self, text):
+        """
+        Handle keypad button presses.
+        Supports item number entry, add (+), and remove (↵).
+        """
         self.inactivity_timer.start()
 
         if self.json_error:
@@ -246,24 +275,26 @@ class UserPanel(QWidget):
             return
 
         if text == '↵':
-            if self.current_input:  # اگه کاربر در حال تایپ شماره آیتمه
+            # Handle 'enter' / remove functionality
+            if self.current_input:
                 self.current_input = ""
                 if self.selected_items:
                     self.update_selection_display()
                 else:
                     self.set_initial_display()
-            elif self.selected_items:  # اگه ورودی خالیه ولی آیتم انتخاب‌شده داریم
+            elif self.selected_items:
                 removed_item = self.selected_items.pop()
                 self.total_price -= removed_item['price']
                 if self.selected_items:
                     self.update_selection_display()
                 else:
                     self.set_initial_display()
-            else:  # نه ورودی هست نه آیتم
+            else:
                 self.set_initial_display()
             return
 
         if text == '+':
+            # Handle item selection
             if not self.current_input:
                 self.display_label.setText(
                     '<div style="font-size:32px;">'
@@ -271,8 +302,8 @@ class UserPanel(QWidget):
                     '<span style="font-size:24px;">Enter the desired item number.</span>'
                     '</div>'
                 )
-
                 return
+
             item = self.item_lookup(self.current_input)
             if item and item.get('name') and item.get('price', 0) > 0:
                 self.selected_items.append({
@@ -290,14 +321,14 @@ class UserPanel(QWidget):
             return
 
         if text.isdigit():
+            # Append digit to current input
             self.current_input += text
             self.display_label.setText(f"Press the + button to select the item {self.current_input}.")
 
     def update_selection_display(self):
+        """Update the display to show selected items and instructions."""
         if not self.selected_items:
-            self.display_label.setText(
-                '<div style="font-size:20px;">No items available yet.</div>'
-            )
+            self.display_label.setText('<div style="font-size:20px;">No items available yet.</div>')
             self.set_initial_display()
             return
 
@@ -309,14 +340,16 @@ class UserPanel(QWidget):
 
         instructions = (
             "<div style='font-size:20px; color:#555; margin-top:8px;'>"
-            "To add another item, press <b>+</b>.<br>To remove an item, press <b>↵</b>.<br>Or complete the payment."
+            "To add another item, press <b>+</b>.<br>"
+            "To remove an item, press <b>↵</b>.<br>"
+            "Or complete the payment."
             "</div>"
         )
         self.display_label.setText(f"{selected_display}{instructions}")
-
         self.confirm_pay_btn.setText(f"Pay (Total: {self.total_price} IRR)")
 
     def on_confirm_pay(self):
+        """Handle Pay button press and show confirmation dialog."""
         self.inactivity_timer.start()
 
         if self.json_error:
@@ -341,9 +374,7 @@ class UserPanel(QWidget):
 
         dlg = ConfirmDialog(self.selected_items, self.total_price, self)
         if dlg.exec_() == QDialog.Accepted:
-            self.display_label.setText(
-                f"Proceeding to payment\nTotal: {self.total_price} IRR"
-            )
+            self.display_label.setText(f"Proceeding to payment\nTotal: {self.total_price} IRR")
             self.process_payment()
         else:
             self.selected_items = []
@@ -352,23 +383,20 @@ class UserPanel(QWidget):
             self.set_initial_display()
 
     def process_payment(self):
-        """
-        Start payment in a worker thread, update UI via signals.
-        """
-        # disable the pay button to avoid double clicks
+        """Start payment in a worker thread and update UI via signals."""
         self.confirm_pay_btn.setEnabled(False)
 
-        # create worker and thread
+        # Create worker and thread
         self._payment_worker = PaymentWorker(self.card_reader, self.total_price)
         self._payment_thread = QThread()
         self._payment_worker.moveToThread(self._payment_thread)
 
-        # connect signals
+        # Connect signals
         self._payment_thread.started.connect(self._payment_worker.run)
         self._payment_worker.status.connect(lambda msg: self.display_label.setText(msg))
         self._payment_worker.finished.connect(self._on_payment_finished)
 
-        # cleanup when done
+        # Ensure cleanup when done
         def _cleanup_payment():
             if self._payment_thread:
                 self._payment_thread.quit()
@@ -377,52 +405,36 @@ class UserPanel(QWidget):
             self._payment_thread = None
 
         self._payment_worker.finished.connect(_cleanup_payment)
-
-        # start thread
         self._payment_thread.start()
 
     def _on_payment_finished(self, result):
-        """
-        Handle the result emitted by PaymentWorker (runs in main thread).
-        """
-        # show the message from result if exists
+        """Handle result from PaymentWorker."""
         msg = result.get("message", "")
         if msg:
             self.display_label.setText(msg)
-
         self.handle_payment_result(result)
 
     def handle_payment_result(self, result):
+        """Process payment outcome and proceed accordingly."""
         if result.get("success"):
-            # proceed to dispensing phase — show preparing message then start dispensing
             self.display_label.setText("Payment successful\nPreparing to dispense items...")
             self.start_dispensing()
         else:
-            # payment failed — enable button and notify user
             self.display_label.setText("Payment failed\nPlease try again")
             self.confirm_pay_btn.setEnabled(True)
 
     def start_dispensing(self):
-        """
-        Start dispensing in a worker thread; relay_controller.dispense will call
-        the status_callback which we route through the worker.status signal.
-        """
-        # disable button during dispensing
+        """Start dispensing in a worker thread and stream status updates."""
         self.confirm_pay_btn.setEnabled(False)
 
-        # create worker and thread for dispensing
         self._dispense_worker = DispenseWorker(self.relay_controller, self.selected_items)
         self._dispense_thread = QThread()
         self._dispense_worker.moveToThread(self._dispense_thread)
 
-        # connect lifecycle
         self._dispense_thread.started.connect(self._dispense_worker.run)
-        # route status messages to UI
         self._dispense_worker.status.connect(lambda msg: self.display_label.setText(msg))
-        # when finished, call dispensing_complete in main thread
         self._dispense_worker.finished.connect(self._on_dispense_finished)
 
-        # cleanup function
         def _cleanup_dispense():
             if self._dispense_thread:
                 self._dispense_thread.quit()
@@ -431,15 +443,10 @@ class UserPanel(QWidget):
             self._dispense_thread = None
 
         self._dispense_worker.finished.connect(_cleanup_dispense)
-
-        # start thread
         self._dispense_thread.start()
 
     def _on_dispense_finished(self):
-        """
-        Called when DispenseWorker finishes (in main thread).
-        Reset UI and show final message.
-        """
+        """Reset state after dispensing finishes successfully."""
         self.display_label.setText("All items were successfully dispensed")
         self.selected_items = []
         self.total_price = 0
