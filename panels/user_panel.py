@@ -6,8 +6,8 @@ from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QObject
 import json
 import os
 
-from card_reader import CardReader
-from relay_controller import RelayController
+from mock_card_reader import CardReader
+from mock_relay_controller import RelayController
 
 
 class ConfirmDialog(QDialog):
