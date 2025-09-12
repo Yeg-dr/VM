@@ -1,17 +1,8 @@
 """
-relay_controller.py
--------------------
-ماژول کنترل رله‌ها برای دستگاه وندینگ ماشین
---------------------------------------------
-این ماژول به صورت مستقیم با GPIO های Raspberry Pi کار می‌کند و وظیفه‌ی فعال‌سازی
-رله‌ها بر اساس لوکیشن تعریف‌شده در فایل آیتم‌ها (vending_items.json) را دارد.
-
-لوکیشن‌ها در فایل JSON به صورت ترکیب «حرف + عدد» هستند (مثل A1, C3, H4).
-- حروف (A تا H) نشان‌دهنده‌ی ردیف‌ها (۸ ردیف).
-- اعداد (1 تا 4) نشان‌دهنده‌ی ستون‌ها (۴ ستون).
-
-بنابراین یک ماتریس ۸×۴ تشکیل می‌شود (۳۲ آیتم در کل).
-این کلاس لوکیشن را به اندیس عددی تبدیل می‌کند و سپس GPIO متناظر را فعال می‌نماید.
+ماژول کنترل واقعی رله‌ها برای دستگاه وندینگ ماشین
+-------------------------------------------------
+این ماژول جایگزین mock_relay_controller می‌شود و به صورت واقعی
+GPIO های Raspberry Pi را برای آزادسازی آیتم‌ها کنترل می‌کند.
 """
 
 import RPi.GPIO as GPIO
@@ -20,23 +11,21 @@ import time
 
 class RelayMatrix:
     """
-    کلاس سطح پایین برای کنترل ماتریس رله‌ها.
-
-    این کلاس تنها وظیفه‌ی فعال‌سازی یک ردیف و ستون مشخص را دارد.
+    کلاس سطح پایین برای کنترل مستقیم ماتریس رله‌ها.
     """
 
     def __init__(self, row_pins, col_pins, pulse_time=0.5):
         """
         پارامترها:
             row_pins: لیست پین‌های GPIO مربوط به ردیف‌ها (A تا H)
-            col_pins: لیست پین‌های GPIO مربوط به ستون‌ها (۱ تا ۴)
-            pulse_time: مدت زمان فعال بودن رله (بر حسب ثانیه)
+            col_pins: لیست پین‌های GPIO مربوط به ستون‌ها (1 تا 4)
+            pulse_time: مدت زمان فعال بودن هر رله (بر حسب ثانیه)
         """
         self.row_pins = row_pins
         self.col_pins = col_pins
         self.pulse_time = pulse_time
 
-        # آماده‌سازی GPIO
+        # تنظیم GPIO ها
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
@@ -51,108 +40,100 @@ class RelayMatrix:
 
     def activate(self, row, col, status_callback=None):
         """
-        فعال‌سازی یک رله بر اساس شماره‌ی ردیف و ستون.
-
-        پارامترها:
-            row: شماره ردیف (۰ تا ۷)
-            col: شماره ستون (۰ تا ۳)
-            status_callback: تابعی برای ارسال پیام وضعیت به UI
+        فعال‌سازی یک رله مشخص با توجه به شماره ردیف و ستون.
         """
         if not (0 <= row < len(self.row_pins)) or not (0 <= col < len(self.col_pins)):
-            raise ValueError("ردیف یا ستون خارج از محدوده است")
+            raise ValueError("Row or column index out of range")
 
         self._reset()
         GPIO.output(self.row_pins[row], GPIO.HIGH)
         GPIO.output(self.col_pins[col], GPIO.HIGH)
 
         if status_callback:
-            status_callback(f"⏳ در حال آزادسازی: ردیف {row}, ستون {col}")
+            status_callback(f"Dispensing from row {row}, col {col}...")
 
         time.sleep(self.pulse_time)
         self._reset()
 
     def activate_by_index(self, index, status_callback=None):
         """
-        فعال‌سازی بر اساس اندیس عددی (۰ تا ۳۱).
-
-        فرمول محاسبه:
-            index = row_index * تعداد ستون‌ها + col_index
+        فعال‌سازی یک رله بر اساس اندیس عددی (0 تا 31).
         """
         total_items = len(self.row_pins) * len(self.col_pins)
         if not (0 <= index < total_items):
-            raise ValueError("شماره آیتم خارج از محدوده است (۰ تا ۳۱)")
+            raise ValueError("Item index out of range (0–31)")
 
         row = index // len(self.col_pins)
         col = index % len(self.col_pins)
         self.activate(row, col, status_callback)
 
     def cleanup(self):
-        """آزادسازی پین‌های GPIO"""
+        """آزادسازی منابع GPIO"""
         GPIO.cleanup()
 
 
 class RelayController:
     """
-    کنترلر سطح بالا برای وندینگ ماشین.
-    وظیفه دارد لیست آیتم‌ها را گرفته و رله‌ی مربوط به هر آیتم را فعال کند.
+    کنترلر سطح بالا برای آزادسازی آیتم‌ها در وندینگ ماشین.
     """
 
-    def __init__(self, item_lookup):
+    def __init__(self, item_lookup_func):
         """
         پارامترها:
-            item_lookup: تابعی که با دریافت کد آیتم، اطلاعات آیتم را برمی‌گرداند.
+            item_lookup_func: تابعی برای دریافت اطلاعات آیتم بر اساس کد آن.
         """
-        self.item_lookup = item_lookup
+        self.item_lookup_func = item_lookup_func
 
-        # پین‌های GPIO (باید بر اساس سیم‌کشی واقعی تنظیم شوند)
-        self.row_pins = [17, 27, 22, 23, 24, 25, 8, 7]   # ردیف‌های A تا H
-        self.col_pins = [5, 6, 13, 19]                   # ستون‌های 1 تا 4
+        # ⚠️ توجه: شماره پین‌ها باید متناسب با سیم‌کشی واقعی تغییر یابد
+        self.row_pins = [17, 27, 22, 23, 24, 25, 8, 7]   # A تا H
+        self.col_pins = [5, 6, 13, 19]                   # 1 تا 4
 
         self.matrix = RelayMatrix(self.row_pins, self.col_pins, pulse_time=1)
 
     def location_to_index(self, location: str):
         """
-        تبدیل لوکیشن (مثل 'C2') به اندیس عددی (۰ تا ۳۱).
-
-        فرمول:
-            row_index = A→0, B→1, ..., H→7
-            col_index = (عدد - ۱) → ۰ تا ۳
-            index = row_index * 4 + col_index
+        تبدیل location مثل 'C2' به اندیس عددی (0 تا 31).
         """
         if not location or len(location) < 2:
             raise ValueError(f"Invalid location: {location}")
 
         row_letter = location[0].upper()
-        col_number = int(location[1])  # 1 تا 4
+        col_number = int(location[1])  # ستون (1 تا 4)
 
         row_index = ord(row_letter) - ord('A')  # A=0 … H=7
-        col_index = col_number - 1             # 1=0 … 4=3
+        col_index = col_number - 1              # 1=0 … 4=3
 
         return row_index * len(self.col_pins) + col_index
 
-    def dispense(self, selected_items, status_callback=None):
+    def dispense(self, selected_items, status_callback):
         """
-        آزادسازی یک لیست از آیتم‌ها.
+        آزادسازی لیست آیتم‌ها.
 
         پارامترها:
-            selected_items: لیست آیتم‌ها (هر آیتم شامل location است)
-            status_callback: تابعی برای ارسال وضعیت به UI
+            selected_items: لیستی از آیتم‌های انتخاب‌شده توسط کاربر
+            status_callback: تابعی برای ارسال پیام وضعیت به UI
         """
+        status_callback("Starting dispensing process...")
+        time.sleep(1)
+
         for item in selected_items:
-            loc = item.get("location")
+            info = self.item_lookup_func(item["code"])
+            if not info:
+                status_callback(f"Error: Item code {item['code']} not found!")
+                continue
+
+            loc = info.get("location")
             if not loc:
-                if status_callback:
-                    status_callback(f"⚠️ آیتم {item['code']} فاقد اطلاعات مکان است")
+                status_callback(f"Error: Item {item['code']} has no location info")
                 continue
 
             try:
                 index = self.location_to_index(loc)
                 self.matrix.activate_by_index(index, status_callback)
-                if status_callback:
-                    status_callback(f"✅ آیتم {item['name']} با موفقیت آزاد شد")
-                time.sleep(0.5)  # فاصله‌ی کوتاه بین آیتم‌ها
+                status_callback(f"Dispensed: {item['name']} from {loc}")
+                time.sleep(0.5)
             except Exception as e:
-                if status_callback:
-                    status_callback(f"❌ خطا در آزادسازی {item['name']}: {e}")
+                status_callback(f"Error dispensing {item['name']}: {e}")
 
         self.matrix.cleanup()
+        status_callback("Dispensing completed successfully")
